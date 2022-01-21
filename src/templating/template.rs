@@ -46,10 +46,19 @@ impl TemplateBlock {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(super) struct TemplateBlockDirective {
-    pub directive: &'static dyn BlockDirective,
+    pub directive: Box<dyn BlockDirective>,
     pub blocks: Vec<TemplateBlock>, // TODO: Lifetime shit?
+}
+
+impl Clone for TemplateBlockDirective {
+    fn clone(&self) -> Self {
+        TemplateBlockDirective {
+            directive: self.directive.clone(),
+            blocks: self.blocks.clone(),
+        }
+    }
 }
 
 impl TemplateBlockDirective {

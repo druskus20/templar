@@ -71,21 +71,17 @@ fn directive_block(input: &str) -> IResult<&str, TemplateBlockDirective> {
         tag(CLOSING_MARK),
     )(input)?;
 
-    Ok((
-        rest,
-        TemplateBlockDirective {
-            directive: &(*directive),
-            blocks,
-        },
-    ))
+    Ok((rest, TemplateBlockDirective { directive, blocks }))
 }
 
 fn directive(input: &str) -> IResult<&str, Box<dyn BlockDirective>> {
     let (rest, parsed) = terminated(map(is_not("\n"), |t: &str| t.trim()), char('\n'))(input)?;
-    let directive = DoNothingBlock {
-        text: parsed.to_string(),
-    };
-    Ok((rest, Box::new(directive)))
+    Ok((
+        rest,
+        Box::new(DoNothingBlock {
+            text: parsed.to_string(),
+        }),
+    ))
 }
 /*
 #[cfg(test)]
