@@ -84,73 +84,74 @@ fn block_directive(input: &str) -> IResult<&str, Box<dyn BlockDirective>> {
 
     Ok((rest, directive))
 }
-/*
-#[cfg(test)]
-mod tests {
-    use std::fmt::format;
 
-    use super::*;
-
-    #[test]
-    fn test_template() {
-        let input = format!(
-            r#"
-textbefore
-{} directive1
-  text1
-{}
-textbetween
-{} directive2
-  text2
-{}
-textafter
-"#,
-            OPENING_MARK, CLOSING_MARK, OPENING_MARK, CLOSING_MARK
-        );
-        let expected = vec![
-            TemplateBlock::Text("textbefore".to_string()),
-            TemplateBlock::BlockDirective(TemplateBlockDirective {
-                directive: BlockDirective::DoNothing(DoNothingBlock {
-                    text: "directive1".to_string(),
-                }),
-                blocks: vec![TemplateBlock::Text("text1".to_string())],
-            }),
-            TemplateBlock::Text("textbetween".to_string()),
-            TemplateBlock::BlockDirective(TemplateBlockDirective {
-                directive: BlockDirective::DoNothing(DoNothingBlock {
-                    text: "directive2".to_string(),
-                }),
-                blocks: vec![TemplateBlock::Text("text2".to_string())],
-            }),
-            TemplateBlock::Text("textafter".to_string()),
-        ];
-
-        let result = template(input.as_str()).unwrap().1;
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_template_block() {
-        let input = format!(
-            "{} directive1 \n{} directive2 \ntext{} asd{}",
-            OPENING_MARK, OPENING_MARK, CLOSING_MARK, CLOSING_MARK
-        );
-        let expected = TemplateBlock::BlockDirective(TemplateBlockDirective {
-            directive: BlockDirective::DoNothing(DoNothingBlock {
-                text: "directive1".to_string(),
-            }),
-            blocks: vec![
-                TemplateBlock::BlockDirective(TemplateBlockDirective {
-                    directive: BlockDirective::DoNothing(DoNothingBlock {
-                        text: "directive2".to_string(),
-                    }),
-                    blocks: vec![TemplateBlock::Text("text".to_string())],
-                }),
-                TemplateBlock::Text("asd".to_string()),
-            ],
-        });
-
-        let result = template_block(input.as_str()).unwrap().1;
-        assert_eq!(result, expected);
-    }
-}*/
+// NOTE: Test no work because of Eq / PartialEq
+// #[cfg(test)]
+// mod tests {
+//     use std::fmt::format;
+//
+//     use super::*;
+//
+//     #[test]
+//     fn test_template() {
+//         let input = format!(
+//             r#"
+// textbefore
+// {} directive1
+//   text1
+// {}
+// textbetween
+// {} directive2
+//   text2
+// {}
+// textafter
+// "#,
+//             OPENING_MARK, CLOSING_MARK, OPENING_MARK, CLOSING_MARK
+//         );
+//         let expected = vec![
+//             TemplateBlock::Text("textbefore".to_string()),
+//             TemplateBlock::BlockDirective(TemplateBlockDirective {
+//                 directive: Box::new(DoNothingBlock {
+//                     text: "directive1".to_string(),
+//                 }),
+//                 blocks: vec![TemplateBlock::Text("text1".to_string())],
+//             }),
+//             TemplateBlock::Text("textbetween".to_string()),
+//             TemplateBlock::BlockDirective(TemplateBlockDirective {
+//                 directive: Box::new(DoNothingBlock {
+//                     text: "directive2".to_string(),
+//                 }),
+//                 blocks: vec![TemplateBlock::Text("text2".to_string())],
+//             }),
+//             TemplateBlock::Text("textafter".to_string()),
+//         ];
+//
+//         let result = template(input.as_str()).unwrap().1;
+//         assert_eq!(result, expected);
+//     }
+//
+//     #[test]
+//     fn test_template_block() {
+//         let input = format!(
+//             "{} directive1 \n{} directive2 \ntext{} asd{}",
+//             OPENING_MARK, OPENING_MARK, CLOSING_MARK, CLOSING_MARK
+//         );
+//         let expected = TemplateBlock::BlockDirective(TemplateBlockDirective {
+//             directive: Box::new(DoNothingBlock {
+//                 text: "directive1".to_string(),
+//             }),
+//             blocks: vec![
+//                 TemplateBlock::BlockDirective(TemplateBlockDirective {
+//                     directive: Box::new(DoNothingBlock {
+//                         text: "directive2".to_string(),
+//                     }),
+//                     blocks: vec![TemplateBlock::Text("text".to_string())],
+//                 }),
+//                 TemplateBlock::Text("asd".to_string()),
+//             ],
+//         });
+//
+//         let result = template_block(input.as_str()).unwrap().1;
+//         assert_eq!(result, expected);
+//     }
+// }

@@ -4,7 +4,7 @@ use super::{
     directive::{BlockDirective, LineDirective},
     parser,
 };
-use anyhow::Result;
+use anyhow::{private::kind::BoxedKind, Result};
 
 #[derive(Debug, Clone)]
 pub(super) struct Template {

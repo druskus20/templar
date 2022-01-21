@@ -14,8 +14,6 @@ pub(super) trait DirectiveClone {
 
 impl<T> DirectiveClone for T
 where
-    // NOTE: This is super weird.
-    // TODO: Does static even make sense?
     T: BlockDirective + 'static + Clone,
 {
     fn clone_box(&self) -> Box<dyn BlockDirective> {
@@ -28,6 +26,23 @@ impl Clone for Box<dyn BlockDirective> {
         self.clone_box()
     }
 }
+
+// NOTE: Alternatives I wish worked
+
+// pub directive: Box<dyn BlockDirective>,
+
+// pub(super) trait BlockDirective: Clone + 'static {
+//     fn run(&self, contents: Vec<TemplateBlock>) -> Result<&str>;
+// }
+
+// impl<T> Clone for Box<T>
+// where
+//     T: BlockDirective + 'static + Clone,
+// {
+//     fn clone(&self) -> Box<T> {
+//         Box::new((*self).clone())
+//     }
+// }
 // ----------
 
 impl std::fmt::Debug for dyn BlockDirective {
