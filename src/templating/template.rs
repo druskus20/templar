@@ -9,7 +9,7 @@ use anyhow::Result;
 #[derive(Debug, Clone)]
 pub(super) struct Template {
     //pub settings
-    pub blocks: Vec<TemplateBlock>, // TODO: Maybe do this with traits so that I dont need 200 nested enums
+    pub blocks: Vec<TemplateBlock>,
 }
 
 impl TryFrom<PathBuf> for Template {
@@ -21,7 +21,14 @@ impl TryFrom<PathBuf> for Template {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+//impl std::fmt::Debug for dyn TemplateBlockTRAIT {
+//    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//        write!(f, "{}", "woo")
+//        // TODO:
+//    }
+//}
+
+#[derive(Debug, Clone)]
 pub(super) enum TemplateBlock {
     Text(String),
     BlockDirective(TemplateBlockDirective),
@@ -29,13 +36,35 @@ pub(super) enum TemplateBlock {
     // ...
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub(super) struct TemplateBlockDirective {
-    pub directive: BlockDirective,
-    pub blocks: Vec<TemplateBlock>,
+impl TemplateBlock {
+    pub(super) fn run(&self) -> Result<&str> {
+        match self {
+            TemplateBlock::Text(text) => Ok(text),
+            TemplateBlock::BlockDirective(directive) => directive.run(),
+            TemplateBlock::LineDirective(directive) => directive.run(),
+        }
+    }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
+pub(super) struct TemplateBlockDirective {
+    pub directive: &'static dyn BlockDirective,
+    pub blocks: Vec<TemplateBlock>, // TODO: Lifetime shit?
+}
+
+impl TemplateBlockDirective {
+    pub(super) fn run(&self) -> Result<&str> {
+        self.directive.run(self.blocks.clone()) // TODO: Clone
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub(super) struct TemplateLineDirective {
-    pub directive: LineDirective,
+    pub directive: &'static dyn LineDirective,
+}
+
+impl TemplateLineDirective {
+    pub(super) fn run(&self) -> Result<&str> {
+        self.directive.run()
+    }
 }
