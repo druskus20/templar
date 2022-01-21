@@ -21,13 +21,6 @@ impl TryFrom<PathBuf> for Template {
     }
 }
 
-//impl std::fmt::Debug for dyn TemplateBlockTRAIT {
-//    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//        write!(f, "{}", "woo")
-//        // TODO:
-//    }
-//}
-
 #[derive(Debug, Clone)]
 pub(super) enum TemplateBlock {
     Text(String),
@@ -40,25 +33,18 @@ impl TemplateBlock {
     pub(super) fn run(&self) -> Result<&str> {
         match self {
             TemplateBlock::Text(text) => Ok(text),
+            // NOTE: Turn this 2 into a trait?
             TemplateBlock::BlockDirective(directive) => directive.run(),
             TemplateBlock::LineDirective(directive) => directive.run(),
         }
     }
 }
 
-#[derive(Debug)]
+// We need to implement Clone for Box<dyn BlockDirective>
+#[derive(Debug, Clone)]
 pub(super) struct TemplateBlockDirective {
     pub directive: Box<dyn BlockDirective>,
-    pub blocks: Vec<TemplateBlock>, // TODO: Lifetime shit?
-}
-
-impl Clone for TemplateBlockDirective {
-    fn clone(&self) -> Self {
-        TemplateBlockDirective {
-            directive: self.directive.clone(),
-            blocks: self.blocks.clone(),
-        }
-    }
+    pub blocks: Vec<TemplateBlock>,
 }
 
 impl TemplateBlockDirective {
@@ -67,7 +53,7 @@ impl TemplateBlockDirective {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(super) struct TemplateLineDirective {
     pub directive: &'static dyn LineDirective,
 }

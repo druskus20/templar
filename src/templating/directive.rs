@@ -5,6 +5,7 @@ pub(super) trait BlockDirective: DirectiveClone {
     fn run(&self, contents: Vec<TemplateBlock>) -> Result<&str>;
 }
 
+// ----------
 //Black magic to make the let the compiler clone a Box<dyn BlockDirective>
 //https://stackoverflow.com/questions/30353462/how-to-clone-a-struct-storing-a-boxed-trait-object
 pub(super) trait DirectiveClone {
@@ -27,7 +28,7 @@ impl Clone for Box<dyn BlockDirective> {
         self.clone_box()
     }
 }
-//------
+// ----------
 
 impl std::fmt::Debug for dyn BlockDirective {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

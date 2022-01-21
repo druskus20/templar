@@ -67,21 +67,22 @@ fn template_block(input: &str) -> IResult<&str, TemplateBlock> {
 fn directive_block(input: &str) -> IResult<&str, TemplateBlockDirective> {
     let (rest, (directive, blocks)) = delimited(
         tag(OPENING_MARK),
-        pair(directive, many0(template_block)),
+        pair(block_directive, many0(template_block)),
         tag(CLOSING_MARK),
     )(input)?;
 
     Ok((rest, TemplateBlockDirective { directive, blocks }))
 }
 
-fn directive(input: &str) -> IResult<&str, Box<dyn BlockDirective>> {
+fn block_directive(input: &str) -> IResult<&str, Box<dyn BlockDirective>> {
     let (rest, parsed) = terminated(map(is_not("\n"), |t: &str| t.trim()), char('\n'))(input)?;
-    Ok((
-        rest,
-        Box::new(DoNothingBlock {
-            text: parsed.to_string(),
-        }),
-    ))
+
+    // Because we cant pass this as a reference, we will need Clone later
+    let directive = Box::new(DoNothingBlock {
+        text: parsed.to_string(),
+    });
+
+    Ok((rest, directive))
 }
 /*
 #[cfg(test)]
