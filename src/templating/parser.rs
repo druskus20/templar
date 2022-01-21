@@ -1,5 +1,10 @@
 // https://github.com/fflorent/nom_locate/ Line numbers?
 
+use super::{
+    directive::{BlockDirective, DoNothingBlock},
+    template::{Template, TemplateBlock, TemplateBlockDirective},
+};
+use anyhow::Result;
 use std::path::PathBuf;
 
 use nom::{
@@ -12,55 +17,29 @@ use nom::{
     IResult,
 };
 
-const OPENING_MARK: &str = "!!%";
-const CLOSING_MARK: &str = "%!!";
-
-#[derive(Debug, Clone)]
-pub struct Template {
-    pub settings: String,
-    pub blocks: Vec<TemplateBlock>,
-}
-
-impl TryFrom<PathBuf> for Template {
-    type Error = anyhow::Error;
-
-    fn try_from(value: PathBuf) -> Result<Self, Self::Error> {
-        let file_contents = std::fs::read_to_string(value)?;
-
-        match template(&file_contents) {
-            Ok((_, blocks)) => Ok(Template {
-                blocks,
-                settings: String::new(),
-            }),
-            Err(e) => anyhow::bail!("{}", e), // Rethrow the error (lifetimes stuff)
-        }
+// Parses a raw template string into a Template
+pub(super) fn parse_template(raw_template: &str) -> Result<Template> {
+    match template(raw_template) {
+        Ok((_, blocks)) => Ok(Template { blocks }),
+        Err(e) => anyhow::bail!("{}", e), // Rethrow the error (lifetimes stuff)
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum TemplateBlock {
-    Text(String),
-    DirectiveBlock(DirectiveBlock),
-}
+// PARSER CODE
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct DirectiveBlock {
-    directive: String,
-    blocks: Vec<TemplateBlock>,
-}
+const OPENING_MARK: &str = "!!%";
+const CLOSING_MARK: &str = "%!!";
 
-// TODO: FIx this (base case, not wrapped in OPENING_MARK CLOSING_MARK )
 /*
  * text    TemplateBlock::Text
- * ( ... ) TemplateBlock::Directive block
+ * ( ... ) TemplateBlock::BlockDirective
  * text    TemplateBlock::Text
- * ( ... ) TemplateBlock::Directive block
+ * ( ... ) TemplateBlock::BlockDirective
  * text    TemplateBlock::Text
  */
-
 fn template(input: &str) -> IResult<&str, Vec<TemplateBlock>> {
     many0(alt((
-        map(directive_block, TemplateBlock::DirectiveBlock),
+        map(directive_block, TemplateBlock::BlockDirective),
         map(text, |t| TemplateBlock::Text(t.to_string())),
     )))(input)
 }
@@ -75,7 +54,7 @@ fn text(input: &str) -> IResult<&str, &str> {
  */
 fn template_block(input: &str) -> IResult<&str, TemplateBlock> {
     alt((
-        map(directive_block, TemplateBlock::DirectiveBlock),
+        map(directive_block, TemplateBlock::BlockDirective),
         map(is_not(CLOSING_MARK), |t: &str| {
             TemplateBlock::Text(t.trim().to_string())
         }),
@@ -85,24 +64,22 @@ fn template_block(input: &str) -> IResult<&str, TemplateBlock> {
 /*
  * ( directive template_blocks )
  */
-fn directive_block(input: &str) -> IResult<&str, DirectiveBlock> {
-    let (rest, (directive, template_blocks)) = delimited(
+fn directive_block(input: &str) -> IResult<&str, TemplateBlockDirective> {
+    let (rest, (directive, blocks)) = delimited(
         tag(OPENING_MARK),
         pair(directive, many0(template_block)),
         tag(CLOSING_MARK),
     )(input)?;
 
-    Ok((
-        rest,
-        DirectiveBlock {
-            directive: directive.to_string(),
-            blocks: template_blocks,
-        },
-    ))
+    Ok((rest, TemplateBlockDirective { directive, blocks }))
 }
 
-fn directive(input: &str) -> IResult<&str, &str> {
-    terminated(map(is_not("\n"), |t: &str| t.trim()), char('\n'))(input)
+fn directive(input: &str) -> IResult<&str, BlockDirective> {
+    let (rest, parsed) = terminated(map(is_not("\n"), |t: &str| t.trim()), char('\n'))(input)?;
+    let directive = BlockDirective::DoNothing(DoNothingBlock {
+        text: parsed.to_string(),
+    });
+    Ok((rest, directive))
 }
 
 #[cfg(test)]
@@ -129,13 +106,17 @@ textafter
         );
         let expected = vec![
             TemplateBlock::Text("textbefore".to_string()),
-            TemplateBlock::DirectiveBlock(DirectiveBlock {
-                directive: "directive1".to_string(),
+            TemplateBlock::BlockDirective(TemplateBlockDirective {
+                directive: BlockDirective::DoNothing(DoNothingBlock {
+                    text: "directive1".to_string(),
+                }),
                 blocks: vec![TemplateBlock::Text("text1".to_string())],
             }),
             TemplateBlock::Text("textbetween".to_string()),
-            TemplateBlock::DirectiveBlock(DirectiveBlock {
-                directive: "directive2".to_string(),
+            TemplateBlock::BlockDirective(TemplateBlockDirective {
+                directive: BlockDirective::DoNothing(DoNothingBlock {
+                    text: "directive2".to_string(),
+                }),
                 blocks: vec![TemplateBlock::Text("text2".to_string())],
             }),
             TemplateBlock::Text("textafter".to_string()),
@@ -151,11 +132,15 @@ textafter
             "{} directive1 \n{} directive2 \ntext{} asd{}",
             OPENING_MARK, OPENING_MARK, CLOSING_MARK, CLOSING_MARK
         );
-        let expected = TemplateBlock::DirectiveBlock(DirectiveBlock {
-            directive: "directive1".to_string(),
+        let expected = TemplateBlock::BlockDirective(TemplateBlockDirective {
+            directive: BlockDirective::DoNothing(DoNothingBlock {
+                text: "directive1".to_string(),
+            }),
             blocks: vec![
-                TemplateBlock::DirectiveBlock(DirectiveBlock {
-                    directive: "directive2".to_string(),
+                TemplateBlock::BlockDirective(TemplateBlockDirective {
+                    directive: BlockDirective::DoNothing(DoNothingBlock {
+                        text: "directive2".to_string(),
+                    }),
                     blocks: vec![TemplateBlock::Text("text".to_string())],
                 }),
                 TemplateBlock::Text("asd".to_string()),

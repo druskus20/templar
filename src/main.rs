@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 
-mod template_parser;
+mod templating;
 
 fn main() {
     println!("Hello, world!");
