@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use super::{
-    directive::{BlockDirective, LineDirective},
+    directive::{DirectiveBlock, DirectiveLine},
     parser,
 };
 use anyhow::{private::kind::BoxedKind, Result};
@@ -24,7 +24,7 @@ impl TryFrom<PathBuf> for Template {
 #[derive(Debug, Clone)]
 pub(super) enum TemplateBlock {
     Text(String),
-    BlockDirective(TemplateBlockDirective),
+    BlockDirective(TemplateDirectiveBlock),
     LineDirective(TemplateLineDirective),
     // ...
 }
@@ -42,24 +42,28 @@ impl TemplateBlock {
 
 // We need to implement Clone for Box<dyn BlockDirective>
 #[derive(Debug, Clone)]
-pub(super) struct TemplateBlockDirective {
-    pub directive: Box<dyn BlockDirective>,
+pub(super) struct TemplateDirectiveBlock {
+    pub directive: Box<dyn DirectiveBlock>,
     pub blocks: Vec<TemplateBlock>,
 }
 
-impl TemplateBlockDirective {
-    pub(super) fn run(&self) -> Result<&str> {
+trait Generator {
+    fn run(&self) -> Result<&str>;
+}
+
+impl Generator for TemplateDirectiveBlock {
+    fn run(&self) -> Result<&str> {
         self.directive.run(self.blocks.clone()) // TODO: Clone
     }
 }
 
 #[derive(Debug, Clone)]
 pub(super) struct TemplateLineDirective {
-    pub directive: &'static dyn LineDirective,
+    pub directive: &'static dyn DirectiveLine,
 }
 
-impl TemplateLineDirective {
-    pub(super) fn run(&self) -> Result<&str> {
+impl Generator for TemplateLineDirective {
+    fn run(&self) -> Result<&str> {
         self.directive.run()
     }
 }
