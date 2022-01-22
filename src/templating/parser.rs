@@ -5,7 +5,7 @@ use super::{
     template::{Generator, Template, TemplateDirectiveBlock},
 };
 use anyhow::Result;
-use std::path::PathBuf;
+use std::{path::PathBuf, rc::Rc};
 
 use nom::{
     branch::alt,
@@ -37,13 +37,13 @@ const CLOSING_MARK: &str = "%!!";
  * ( ... ) TemplateBlock::BlockDirective
  * text    TemplateBlock::Text
  */
-fn template(input: &str) -> IResult<&str, Vec<Box<dyn Generator>>> {
+fn template(input: &str) -> IResult<&str, Vec<Rc<dyn Generator>>> {
     many0(alt((directive_block, text)))(input)
 }
 //
-fn text(input: &str) -> IResult<&str, Box<dyn Generator>> {
+fn text(input: &str) -> IResult<&str, Rc<dyn Generator>> {
     map(is_not(OPENING_MARK), |t: &str| {
-        let boxed_text: Box<dyn Generator> = Box::new(t.trim().to_string());
+        let boxed_text: Rc<dyn Generator> = Rc::new(t.trim().to_string());
         boxed_text
     })(input)
 }
@@ -52,11 +52,11 @@ fn text(input: &str) -> IResult<&str, Box<dyn Generator>> {
  * text
  * directive_block
  */
-fn template_block(input: &str) -> IResult<&str, Box<dyn Generator>> {
+fn template_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
     alt((
         directive_block,
         map(is_not(CLOSING_MARK), |t: &str| {
-            let boxed_text: Box<dyn Generator> = Box::new(t.trim().to_string());
+            let boxed_text: Rc<dyn Generator> = Rc::new(t.trim().to_string());
             boxed_text
         }),
     ))(input)
@@ -65,7 +65,7 @@ fn template_block(input: &str) -> IResult<&str, Box<dyn Generator>> {
 /*
  * ( directive template_blocks )
  */
-fn directive_block(input: &str) -> IResult<&str, Box<dyn Generator>> {
+fn directive_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
     let (rest, (directive, blocks)) = delimited(
         tag(OPENING_MARK),
         pair(block_directive, many0(template_block)),
@@ -73,14 +73,14 @@ fn directive_block(input: &str) -> IResult<&str, Box<dyn Generator>> {
     )(input)?;
 
     // OOooh?
-    Ok((rest, Box::new(TemplateDirectiveBlock { directive, blocks })))
+    Ok((rest, Rc::new(TemplateDirectiveBlock { directive, blocks })))
 }
 
-fn block_directive(input: &str) -> IResult<&str, Box<dyn BlockDirective>> {
+fn block_directive(input: &str) -> IResult<&str, Rc<dyn BlockDirective>> {
     let (rest, parsed) = terminated(map(is_not("\n"), |t: &str| t.trim()), char('\n'))(input)?;
 
     // Because we cant pass this as a reference, we will need Clone later
-    let directive = Box::new(DoNothing {
+    let directive = Rc::new(DoNothing {
         text: parsed.to_string(),
     });
 
@@ -144,14 +144,14 @@ fn block_directive(input: &str) -> IResult<&str, Box<dyn BlockDirective>> {
 //        let expected = vec![
 //            TemplateBlock::Text("textbefore".to_string()),
 //            TemplateBlock::BlockDirective(TemplateDirectiveBlock {
-//                directive: Box::new(DoNothing {
+//                directive: Rc::new(DoNothing {
 //                    text: "directive1".to_string(),
 //                }),
 //                blocks: vec![TemplateBlock::Text("text1".to_string())],
 //            }),
 //            TemplateBlock::Text("textbetween".to_string()),
 //            TemplateBlock::BlockDirective(TemplateDirectiveBlock {
-//                directive: Box::new(DoNothing {
+//                directive: Rc::new(DoNothing {
 //                    text: "directive2".to_string(),
 //                }),
 //                blocks: vec![TemplateBlock::Text("text2".to_string())],
@@ -178,12 +178,12 @@ fn block_directive(input: &str) -> IResult<&str, Box<dyn BlockDirective>> {
 //            OPENING_MARK, OPENING_MARK, CLOSING_MARK, CLOSING_MARK
 //        );
 //        let expected = TemplateBlock::BlockDirective(TemplateDirectiveBlock {
-//            directive: Box::new(DoNothing {
+//            directive: Rc::new(DoNothing {
 //                text: "directive1".to_string(),
 //            }),
 //            blocks: vec![
 //                TemplateBlock::BlockDirective(TemplateDirectiveBlock {
-//                    directive: Box::new(DoNothing {
+//                    directive: Rc::new(DoNothing {
 //                        text: "directive2".to_string(),
 //                    }),
 //                    blocks: vec![TemplateBlock::Text("text".to_string())],

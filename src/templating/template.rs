@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use super::{
     directive::{BlockDirective, LineDirective},
@@ -9,7 +9,7 @@ use anyhow::{private::kind::BoxedKind, Result};
 #[derive(Debug, Clone)]
 pub(super) struct Template {
     //pub settings
-    pub blocks: Vec<Box<dyn Generator>>,
+    pub blocks: Vec<Rc<dyn Generator>>,
 }
 
 impl TryFrom<PathBuf> for Template {
@@ -21,31 +21,9 @@ impl TryFrom<PathBuf> for Template {
     }
 }
 
-pub(super) trait Generator: GeneratorClone + std::fmt::Debug {
+pub(super) trait Generator: std::fmt::Debug {
     fn run(&self) -> Result<&str>;
 }
-
-// ---- Black magic to impl Clone for Generator
-pub(super) trait GeneratorClone {
-    fn clone_box(&self) -> Box<dyn Generator>;
-}
-
-impl<T> GeneratorClone for T
-where
-    T: Generator + 'static + Clone,
-{
-    fn clone_box(&self) -> Box<dyn Generator> {
-        Box::new((*self).clone()) // We can do this because of the bound Clone
-    }
-}
-
-impl Clone for Box<dyn Generator> {
-    fn clone(&self) -> Self {
-        self.clone_box()
-    }
-}
-
-// ----
 
 impl<T> Generator for T
 where
@@ -59,9 +37,8 @@ where
 // Clone is manually implemented for Box<dyn BlockDirective>
 #[derive(Debug, Clone)]
 pub(super) struct TemplateDirectiveBlock {
-    pub directive: Box<dyn BlockDirective>,
-    pub blocks: Vec<Box<dyn Generator>>,
-    //pub blocks: Vec<dyn Generator>,
+    pub directive: Rc<dyn BlockDirective>,
+    pub blocks: Vec<Rc<dyn Generator>>,
 }
 
 #[derive(Debug, Clone)]
