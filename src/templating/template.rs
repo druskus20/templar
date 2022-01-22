@@ -1,10 +1,9 @@
-use std::{collections::HashMap, path::PathBuf, rc::Rc};
+use std::{fmt::Debug, path::PathBuf, rc::Rc};
 
-use super::{
-    directive::{BlockDirective, LineDirective},
-    parser,
-};
-use anyhow::{private::kind::BoxedKind, Result};
+use super::directive::Generator;
+
+use super::parser;
+use anyhow::Result;
 
 #[derive(Debug, Clone)]
 pub(super) struct Template {
@@ -18,41 +17,5 @@ impl TryFrom<PathBuf> for Template {
     fn try_from(value: PathBuf) -> Result<Self> {
         let file_contents = std::fs::read_to_string(value)?;
         parser::parse_template(&file_contents)
-    }
-}
-
-pub(super) trait Generator: std::fmt::Debug {
-    fn run(&self) -> Result<&str>;
-}
-
-impl<T> Generator for T
-where
-    T: AsRef<str> + std::fmt::Debug,
-{
-    fn run(&self) -> Result<&str> {
-        Ok(self.as_ref())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(super) struct TemplateDirectiveBlock {
-    pub directive: Rc<dyn BlockDirective>,
-    pub blocks: Vec<Rc<dyn Generator>>,
-}
-
-#[derive(Debug, Clone)]
-pub(super) struct TemplateDirectiveLine {
-    pub directive: &'static dyn LineDirective,
-}
-
-impl Generator for TemplateDirectiveBlock {
-    fn run(&self) -> Result<&str> {
-        self.directive.run(self.blocks.clone())
-    }
-}
-
-impl Generator for TemplateDirectiveLine {
-    fn run(&self) -> Result<&str> {
-        self.directive.run()
     }
 }

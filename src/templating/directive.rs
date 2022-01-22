@@ -1,14 +1,32 @@
 use std::rc::Rc;
 
-use super::template::{Generator, Template, TemplateDirectiveBlock, TemplateDirectiveLine};
 use anyhow::Result;
+use std::fmt::Debug;
 
-pub(super) trait BlockDirective: std::fmt::Debug {
-    fn run(&self, contents: Vec<Rc<dyn Generator>>) -> Result<&str>;
+pub(super) trait Generator: Debug {
+    fn run(&self) -> Result<&str>;
 }
 
-pub(super) trait LineDirective: std::fmt::Debug {
-    fn run(&self) -> Result<&str>;
+// Text
+impl<T> Generator for T
+where
+    T: AsRef<str> + Debug,
+{
+    fn run(&self) -> Result<&str> {
+        Ok(self.as_ref())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct If {
+    pub blocks: Vec<Rc<dyn Generator>>,
+}
+
+impl Generator for If {
+    fn run(&self) -> Result<&str> {
+        // TODO:
+        todo!()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -16,14 +34,20 @@ pub(super) struct DoNothing {
     pub text: String,
 }
 
-impl BlockDirective for DoNothing {
-    fn run(&self, contents: Vec<Rc<dyn Generator>>) -> Result<&str> {
-        Ok(&self.text)
+impl Generator for DoNothing {
+    fn run(&self) -> Result<&str> {
+        Ok(self.text.as_str())
     }
 }
 
-impl LineDirective for DoNothing {
+#[derive(Debug, Clone)]
+pub(super) struct UselessBlockWithText {
+    pub text: String,
+    pub blocks: Vec<Rc<dyn Generator>>,
+}
+
+impl Generator for UselessBlockWithText {
     fn run(&self) -> Result<&str> {
-        Ok(&self.text)
+        Ok(self.text.as_str())
     }
 }

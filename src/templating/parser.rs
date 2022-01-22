@@ -1,17 +1,15 @@
 // https://github.com/fflorent/nom_locate/ Line numbers?
 
-use super::{
-    directive::{BlockDirective, DoNothing},
-    template::{Generator, Template, TemplateDirectiveBlock},
-};
+use super::directive;
+use super::{directive::Generator, template::Template};
 use anyhow::Result;
-use std::{path::PathBuf, rc::Rc};
+use std::rc::Rc;
 
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, tag, take_till, take_until},
+    bytes::complete::{is_not, tag},
     character::complete::char,
-    combinator::{map, not},
+    combinator::map,
     multi::many0,
     sequence::{delimited, pair, terminated},
     IResult,
@@ -26,7 +24,6 @@ pub(super) fn parse_template(raw_template: &str) -> Result<Template> {
 }
 
 // PARSER CODE
-
 const OPENING_MARK: &str = "!!%";
 const CLOSING_MARK: &str = "%!!";
 
@@ -38,14 +35,7 @@ const CLOSING_MARK: &str = "%!!";
  * text    TemplateBlock::Text
  */
 fn template(input: &str) -> IResult<&str, Vec<Rc<dyn Generator>>> {
-    many0(alt((directive_block, text)))(input)
-}
-//
-fn text(input: &str) -> IResult<&str, Rc<dyn Generator>> {
-    map(is_not(OPENING_MARK), |t: &str| {
-        let boxed_text: Rc<dyn Generator> = Rc::new(t.trim().to_string());
-        boxed_text
-    })(input)
+    many0(alt((useless_block_with_text, text_outside_block)))(input)
 }
 
 /*
@@ -53,149 +43,118 @@ fn text(input: &str) -> IResult<&str, Rc<dyn Generator>> {
  * directive_block
  */
 fn template_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
-    alt((
-        directive_block,
-        map(is_not(CLOSING_MARK), |t: &str| {
-            let boxed_text: Rc<dyn Generator> = Rc::new(t.trim().to_string());
-            boxed_text
-        }),
-    ))(input)
+    alt((useless_block_with_text, text_inside_block))(input)
 }
 
 /*
  * ( directive template_blocks )
  */
-fn directive_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
-    let (rest, (directive, blocks)) = delimited(
+fn useless_block_with_text(input: &str) -> IResult<&str, Rc<dyn Generator>> {
+    let (rest, (useless_text, blocks)) = delimited(
         tag(OPENING_MARK),
-        pair(block_directive, many0(template_block)),
+        pair(useless_text, many0(template_block)),
         tag(CLOSING_MARK),
     )(input)?;
 
-    // OOooh?
-    Ok((rest, Rc::new(TemplateDirectiveBlock { directive, blocks })))
+    Ok((
+        rest,
+        Rc::new(directive::UselessBlockWithText {
+            text: useless_text.to_string(),
+            blocks,
+        }),
+    ))
 }
 
-fn block_directive(input: &str) -> IResult<&str, Rc<dyn BlockDirective>> {
+fn useless_text(input: &str) -> IResult<&str, &str> {
     let (rest, parsed) = terminated(map(is_not("\n"), |t: &str| t.trim()), char('\n'))(input)?;
 
-    let directive = Rc::new(DoNothing {
-        text: parsed.to_string(),
-    });
-
-    Ok((rest, directive))
+    Ok((rest, parsed))
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use std::fmt::format;
-//
-//    use super::*;
-//
-//    fn compare_vec_template_blocks(v1: &Vec<TemplateBlock>, v2: &Vec<TemplateBlock>) -> bool {
-//        assert_eq!(v1.len(), v2.len());
-//        for (b1, b2) in v1.iter().zip(v2.iter()) {
-//            if compare_template_blocks(b1, b2) == false {
-//                return false;
-//            }
-//        }
-//        true
-//    }
-//
-//    // Because TemplateBlock doesnt implement Eq / PartialEq (because of Rc), we use
-//    // std::fmt::Debug for the purposes of testing
-//    fn compare_template_blocks(t1: &TemplateBlock, t2: &TemplateBlock) -> bool {
-//        match (t1, t2) {
-//            (TemplateBlock::Text(t1), TemplateBlock::Text(t2)) => t1 == t2,
-//            (TemplateBlock::BlockDirective(t1), TemplateBlock::BlockDirective(t2)) => {
-//                format!("{:?}", t1.directive).cmp(&format!("{:?}", t2.directive))
-//                    == std::cmp::Ordering::Equal
-//                    && t1
-//                        .blocks
-//                        .iter()
-//                        .zip(t2.blocks.iter())
-//                        .all(|(t1, t2)| compare_template_blocks(t1, t2))
-//            }
-//            (TemplateBlock::LineDirective(t1), TemplateBlock::LineDirective(t2)) => {
-//                format!("{:?}", t1.directive).cmp(&format!("{:?}", t2.directive))
-//                    == std::cmp::Ordering::Equal
-//            }
-//            _ => false,
-//        }
-//    }
-//
-//    #[test]
-//    fn test_template() {
-//        let input = format!(
-//            r#"
-// textbefore
-// {} directive1
-//   text1
-// {}
-// textbetween
-// {} directive2
-//   text2
-// {}
-// textafter
-// "#,
-//            OPENING_MARK, CLOSING_MARK, OPENING_MARK, CLOSING_MARK
-//        );
-//        let expected = vec![
-//            TemplateBlock::Text("textbefore".to_string()),
-//            TemplateBlock::BlockDirective(TemplateDirectiveBlock {
-//                directive: Rc::new(DoNothing {
-//                    text: "directive1".to_string(),
-//                }),
-//                blocks: vec![TemplateBlock::Text("text1".to_string())],
-//            }),
-//            TemplateBlock::Text("textbetween".to_string()),
-//            TemplateBlock::BlockDirective(TemplateDirectiveBlock {
-//                directive: Rc::new(DoNothing {
-//                    text: "directive2".to_string(),
-//                }),
-//                blocks: vec![TemplateBlock::Text("text2".to_string())],
-//            }),
-//            TemplateBlock::Text("textafter".to_string()),
-//        ];
-//
-//        let result = template(input.as_str()).unwrap().1;
-//        assert!(compare_vec_template_blocks(&result, &expected));
-//    }
-//
-//    #[test]
-//    fn test_template_block() {
-//        let input = format!(
-//            "{} directive1 \n{} directive2 \ntext{} text2{}",
-//            OPENING_MARK, OPENING_MARK, CLOSING_MARK, CLOSING_MARK
-//        );
-//        let wrong_input1 = format!(
-//            "{} directive1 \n{} directive2 \ntext{} text2{}",
-//            OPENING_MARK, "WRONG_OPENING_MARK", CLOSING_MARK, CLOSING_MARK
-//        );
-//        let wrong_input2 = format!(
-//            "{} directive1 \n{} NOT_DIRECTIVE2 \ntext{} text2{}",
-//            OPENING_MARK, OPENING_MARK, CLOSING_MARK, CLOSING_MARK
-//        );
-//        let expected = TemplateBlock::BlockDirective(TemplateDirectiveBlock {
-//            directive: Rc::new(DoNothing {
-//                text: "directive1".to_string(),
-//            }),
-//            blocks: vec![
-//                TemplateBlock::BlockDirective(TemplateDirectiveBlock {
-//                    directive: Rc::new(DoNothing {
-//                        text: "directive2".to_string(),
-//                    }),
-//                    blocks: vec![TemplateBlock::Text("text".to_string())],
-//                }),
-//                TemplateBlock::Text("text2".to_string()),
-//            ],
-//        });
-//
-//        let result = template_block(input.as_str()).unwrap().1;
-//        let wrong_result1 = template_block(wrong_input1.as_str()).unwrap().1;
-//        let wrong_result2 = template_block(wrong_input2.as_str()).unwrap().1;
-//        assert!(false == compare_template_blocks(&wrong_result1, &expected));
-//        assert!(false == compare_template_blocks(&wrong_result2, &expected));
-//        assert!(compare_template_blocks(&result, &expected));
-//    }
-//}
+// TODO: Change these 2
+fn text_outside_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
+    map(is_not(OPENING_MARK), |t: &str| {
+        let boxed_text: Rc<dyn Generator> = Rc::new(t.trim().to_string());
+        boxed_text
+    })(input)
+}
+
+fn text_inside_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
+    map(is_not(CLOSING_MARK), |t: &str| {
+        let boxed_text: Rc<dyn Generator> = Rc::new(t.trim().to_string());
+        boxed_text
+    })(input)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fmt::format;
+
+    use super::*;
+
+    #[test]
+    fn test_template() {
+        let input = format!(
+            r#"
+     textbefore
+     {} directive1
+       text1
+     {}
+     textbetween
+     {} directive2
+       text2
+     {}
+     textafter
+     "#,
+            OPENING_MARK, CLOSING_MARK, OPENING_MARK, CLOSING_MARK
+        );
+        let expected = Template {
+            blocks: vec![
+                Rc::new("textbefore".to_string()),
+                Rc::new(directive::UselessBlockWithText {
+                    text: "directive1".to_string(),
+                    blocks: vec![Rc::new("text1")],
+                }),
+                Rc::new("textbetween".to_string()),
+                Rc::new(directive::UselessBlockWithText {
+                    text: "directive2".to_string(),
+                    blocks: vec![Rc::new("text2")],
+                }),
+                Rc::new("textafter".to_string()),
+            ],
+        };
+
+        let result = Template {
+            blocks: template(input.as_str()).unwrap().1,
+        };
+
+        assert_eq!(format!("{:?}", result), format!("{:?}", expected));
+    }
+    #[test]
+    fn test_template_block() {
+        // < directive1
+        //   < directive2
+        //     text
+        //     >
+        //   text2
+        // >
+        let input = format!(
+            "{} directive1 \n{} directive2 \ntext{} text2{}",
+            OPENING_MARK, OPENING_MARK, CLOSING_MARK, CLOSING_MARK
+        );
+
+        let expected: Rc<dyn Generator> = Rc::new(directive::UselessBlockWithText {
+            text: "directive1".to_string(),
+            blocks: vec![
+                Rc::new(directive::UselessBlockWithText {
+                    text: "directive2".to_string(),
+                    blocks: vec![Rc::new("text".to_string())],
+                }),
+                Rc::new("text2".to_string()),
+            ],
+        });
+
+        let result = template_block(input.as_str()).unwrap().1;
+        assert_eq!(format!("{:?}", result), format!("{:?}", expected));
+    }
+}
