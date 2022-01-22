@@ -79,7 +79,6 @@ fn directive_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
 fn block_directive(input: &str) -> IResult<&str, Rc<dyn BlockDirective>> {
     let (rest, parsed) = terminated(map(is_not("\n"), |t: &str| t.trim()), char('\n'))(input)?;
 
-    // Because we cant pass this as a reference, we will need Clone later
     let directive = Rc::new(DoNothing {
         text: parsed.to_string(),
     });

@@ -27,14 +27,13 @@ pub(super) trait Generator: std::fmt::Debug {
 
 impl<T> Generator for T
 where
-    T: AsRef<str> + std::fmt::Debug + Clone + 'static,
+    T: AsRef<str> + std::fmt::Debug,
 {
     fn run(&self) -> Result<&str> {
         Ok(self.as_ref())
     }
 }
 
-// Clone is manually implemented for Box<dyn BlockDirective>
 #[derive(Debug, Clone)]
 pub(super) struct TemplateDirectiveBlock {
     pub directive: Rc<dyn BlockDirective>,
@@ -48,7 +47,7 @@ pub(super) struct TemplateDirectiveLine {
 
 impl Generator for TemplateDirectiveBlock {
     fn run(&self) -> Result<&str> {
-        self.directive.run(self.blocks.clone()) // TODO: Clone
+        self.directive.run(self.blocks.clone())
     }
 }
 
