@@ -9,7 +9,7 @@ use anyhow::{private::kind::BoxedKind, Result};
 #[derive(Debug, Clone)]
 pub(super) struct Template {
     //pub settings
-    pub blocks: Vec<TemplateBlock>,
+    pub blocks: Vec<Box<dyn Generator>>,
 }
 
 impl TryFrom<PathBuf> for Template {
@@ -21,25 +21,38 @@ impl TryFrom<PathBuf> for Template {
     }
 }
 
-#[derive(Debug, Clone)]
-pub(super) enum TemplateBlock {
-    Text(String),
-    BlockDirective(TemplateDirectiveBlock),
-    LineDirective(TemplateDirectiveLine),
-    // ...
-}
-
-trait Generator {
+pub(super) trait Generator: GeneratorClone + std::fmt::Debug {
     fn run(&self) -> Result<&str>;
 }
 
-impl Generator for TemplateBlock {
+// ---- Black magic to impl Clone for Generator
+pub(super) trait GeneratorClone {
+    fn clone_box(&self) -> Box<dyn Generator>;
+}
+
+impl<T> GeneratorClone for T
+where
+    T: Generator + 'static + Clone,
+{
+    fn clone_box(&self) -> Box<dyn Generator> {
+        Box::new((*self).clone()) // We can do this because of the bound Clone
+    }
+}
+
+impl Clone for Box<dyn Generator> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
+
+// ----
+
+impl<T> Generator for T
+where
+    T: AsRef<str> + std::fmt::Debug + Clone + 'static,
+{
     fn run(&self) -> Result<&str> {
-        match self {
-            TemplateBlock::Text(text) => Ok(text),
-            TemplateBlock::BlockDirective(directive) => directive.run(),
-            TemplateBlock::LineDirective(directive) => directive.run(),
-        }
+        Ok(self.as_ref())
     }
 }
 
@@ -47,7 +60,7 @@ impl Generator for TemplateBlock {
 #[derive(Debug, Clone)]
 pub(super) struct TemplateDirectiveBlock {
     pub directive: Box<dyn BlockDirective>,
-    pub blocks: Vec<TemplateBlock>,
+    pub blocks: Vec<Box<dyn Generator>>,
     //pub blocks: Vec<dyn Generator>,
 }
 

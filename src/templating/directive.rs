@@ -1,8 +1,8 @@
-use super::template::{Template, TemplateBlock, TemplateDirectiveBlock, TemplateDirectiveLine};
+use super::template::{Generator, Template, TemplateDirectiveBlock, TemplateDirectiveLine};
 use anyhow::Result;
 
 pub(super) trait BlockDirective: DirectiveClone + std::fmt::Debug {
-    fn run(&self, contents: Vec<TemplateBlock>) -> Result<&str>;
+    fn run(&self, contents: Vec<Box<dyn Generator>>) -> Result<&str>;
 }
 
 // ----------
@@ -21,6 +21,9 @@ where
     }
 }
 
+// We can impl Clone for Box<dyn BlockDirective> because
+// BlockDirective is a supertrait of DirectiveClone, and DirectiveClone
+// is implemented for T: BlockDirecgtive + 'static + Clone (which I guess, applies to Box<dyn BlockDirective>?)
 impl Clone for Box<dyn BlockDirective> {
     fn clone(&self) -> Self {
         self.clone_box()
@@ -66,7 +69,7 @@ pub(super) struct DoNothing {
 }
 
 impl BlockDirective for DoNothing {
-    fn run(&self, contents: Vec<TemplateBlock>) -> Result<&str> {
+    fn run(&self, contents: Vec<Box<dyn Generator>>) -> Result<&str> {
         Ok(&self.text)
     }
 }
