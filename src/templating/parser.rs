@@ -3,6 +3,7 @@
 use super::directive;
 use super::{directive::Generator, template::Template};
 use anyhow::Result;
+use nom::sequence::{self, tuple};
 use std::rc::Rc;
 
 use nom::{
@@ -28,58 +29,133 @@ const OPENING_MARK: &str = "!!%";
 const CLOSING_MARK: &str = "%!!";
 
 /*
- * text    TemplateBlock::Text
- * ( ... ) TemplateBlock::BlockDirective
- * text    TemplateBlock::Text
- * ( ... ) TemplateBlock::BlockDirective
- * text    TemplateBlock::Text
+ * text_outisde_chunk | template_chunk
  */
 fn template(input: &str) -> IResult<&str, Vec<Rc<dyn Generator>>> {
-    many0(alt((useless_block_with_text, text_outside_block)))(input)
+    many0(alt((template_chunk, text_outside_chunk)))(input)
 }
 
 /*
- * text
- * directive_block
+ * text_inside_chunk | if_block | if_else_block ...
  */
-fn template_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
-    alt((useless_block_with_text, text_inside_block))(input)
+fn template_chunk(input: &str) -> IResult<&str, Rc<dyn Generator>> {
+    alt((
+        useless_block_with_text,
+        text_inside_chunk,
+        if_block,
+        //if_else_block,
+    ))(input)
 }
 
 /*
- * ( directive template_blocks )
+ * < include condition >
+ */
+fn include_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
+    let (rest, path) =
+        delimited(tag(OPENING_MARK), is_not(CLOSING_MARK), tag(CLOSING_MARK))(input)?;
+
+    Ok((
+        rest,
+        Rc::new(directive::Include {
+            path: path.to_string(),
+        }),
+    ))
+}
+
+/*
+ * < if condition
+ *   template_block
+ *   template_block
+ *   ...
+ * >
+ * < else
+ *  template_block
+ *  template_block
+ *  ...
+ * >
+ */
+fn if_else_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
+    let (rest, ((condition, if_blocks), else_blocks)) = pair(
+        delimited(
+            tag(OPENING_MARK),
+            pair(if_line, many0(template_chunk)),
+            tag(CLOSING_MARK),
+        ),
+        delimited(tag(OPENING_MARK), many0(template_chunk), tag(CLOSING_MARK)),
+    )(input)?;
+
+    Ok((
+        rest,
+        Rc::new(directive::IfElse {
+            condition: condition.to_string(),
+            if_blocks,
+            else_blocks,
+        }),
+    ))
+}
+
+/* < if condition
+ *   template_block
+ *   template_block
+ *   ...
+ * >
+ */
+fn if_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
+    let (rest, (condition, blocks)) = delimited(
+        tag(OPENING_MARK),
+        pair(if_line, many0(template_chunk)),
+        tag(CLOSING_MARK),
+    )(input)?;
+
+    Ok((rest, Rc::new(directive::If { condition, blocks })))
+}
+
+/* if condition \n */
+fn if_line(input: &str) -> IResult<&str, String> {
+    let (rest, (_, condition, _)) = tuple((tag("if"), is_not("\n"), tag("\n")))(input)?;
+    Ok((rest, condition.to_string()))
+}
+
+/*
+ * < useless_text
+ *   template_block
+ *   template_block
+ *   ...
+ * >
  */
 fn useless_block_with_text(input: &str) -> IResult<&str, Rc<dyn Generator>> {
     let (rest, (useless_text, blocks)) = delimited(
         tag(OPENING_MARK),
-        pair(useless_text, many0(template_block)),
+        pair(useless_text, many0(template_chunk)),
         tag(CLOSING_MARK),
     )(input)?;
 
     Ok((
         rest,
         Rc::new(directive::UselessBlockWithText {
-            text: useless_text.to_string(),
+            useless_text,
             blocks,
         }),
     ))
 }
 
-fn useless_text(input: &str) -> IResult<&str, &str> {
-    let (rest, parsed) = terminated(map(is_not("\n"), |t: &str| t.trim()), char('\n'))(input)?;
-
-    Ok((rest, parsed))
+/* text \n */
+fn useless_text(input: &str) -> IResult<&str, String> {
+    terminated(
+        map(is_not("\n"), |t: &str| t.trim().to_string()),
+        char('\n'),
+    )(input)
 }
 
 // TODO: Change these 2
-fn text_outside_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
+fn text_outside_chunk(input: &str) -> IResult<&str, Rc<dyn Generator>> {
     map(is_not(OPENING_MARK), |t: &str| {
         let boxed_text: Rc<dyn Generator> = Rc::new(t.trim().to_string());
         boxed_text
     })(input)
 }
 
-fn text_inside_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
+fn text_inside_chunk(input: &str) -> IResult<&str, Rc<dyn Generator>> {
     map(is_not(CLOSING_MARK), |t: &str| {
         let boxed_text: Rc<dyn Generator> = Rc::new(t.trim().to_string());
         boxed_text
@@ -112,12 +188,12 @@ mod tests {
             blocks: vec![
                 Rc::new("textbefore".to_string()),
                 Rc::new(directive::UselessBlockWithText {
-                    text: "directive1".to_string(),
+                    useless_text: "directive1".to_string(),
                     blocks: vec![Rc::new("text1")],
                 }),
                 Rc::new("textbetween".to_string()),
                 Rc::new(directive::UselessBlockWithText {
-                    text: "directive2".to_string(),
+                    useless_text: "directive2".to_string(),
                     blocks: vec![Rc::new("text2")],
                 }),
                 Rc::new("textafter".to_string()),
@@ -144,17 +220,17 @@ mod tests {
         );
 
         let expected: Rc<dyn Generator> = Rc::new(directive::UselessBlockWithText {
-            text: "directive1".to_string(),
+            useless_text: "directive1".to_string(),
             blocks: vec![
                 Rc::new(directive::UselessBlockWithText {
-                    text: "directive2".to_string(),
+                    useless_text: "directive2".to_string(),
                     blocks: vec![Rc::new("text".to_string())],
                 }),
                 Rc::new("text2".to_string()),
             ],
         });
 
-        let result = template_block(input.as_str()).unwrap().1;
+        let result = template_chunk(input.as_str()).unwrap().1;
         assert_eq!(format!("{:?}", result), format!("{:?}", expected));
     }
 }

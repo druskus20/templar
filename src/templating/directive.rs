@@ -19,13 +19,40 @@ where
 
 #[derive(Debug, Clone)]
 pub(super) struct If {
+    pub condition: String,
     pub blocks: Vec<Rc<dyn Generator>>,
 }
 
 impl Generator for If {
     fn run(&self) -> Result<&str> {
         // TODO:
-        todo!()
+        Ok(self.condition.as_str())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct IfElse {
+    pub condition: String,
+    pub if_blocks: Vec<Rc<dyn Generator>>,
+    pub else_blocks: Vec<Rc<dyn Generator>>,
+}
+
+impl Generator for IfElse {
+    fn run(&self) -> Result<&str> {
+        // TODO:
+        Ok(self.condition.as_str())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct Include {
+    pub path: String,
+}
+
+impl Generator for Include {
+    fn run(&self) -> Result<&str> {
+        // TODO:
+        Ok(self.path.as_str())
     }
 }
 
@@ -40,14 +67,15 @@ impl Generator for DoNothing {
     }
 }
 
+// TODO: Remove this, this is only for testing
 #[derive(Debug, Clone)]
 pub(super) struct UselessBlockWithText {
-    pub text: String,
+    pub useless_text: String,
     pub blocks: Vec<Rc<dyn Generator>>,
 }
 
 impl Generator for UselessBlockWithText {
     fn run(&self) -> Result<&str> {
-        Ok(self.text.as_str())
+        Ok(self.useless_text.as_str())
     }
 }
