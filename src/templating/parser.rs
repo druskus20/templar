@@ -8,6 +8,7 @@ use super::{directive, template};
 use super::{directive::Generator, template::Template};
 use anyhow::Result;
 use nom::character::complete::{multispace0, space0};
+use nom::combinator::opt;
 use nom::error::ParseError;
 use nom::sequence::{self, preceded, tuple};
 use nom::Parser;
@@ -74,10 +75,11 @@ fn template_block<'a>(
         include_block(c),
         if_block(c),
         if_else_block(c),
+        transform_block(c),
         // NOTE: cdelim? odelim?
         // Text
         map(is_not(c.odelim.as_str()), |t: &str| {
-            let boxed_text: TemplateBlock = Rc::new(t.to_string());
+            let boxed_text: TemplateBlock = Rc::new(trim_keep_newline(t));
             boxed_text
         }),
     ))
@@ -108,15 +110,18 @@ fn include_block<'a>(
 /* < */
 fn odelim<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
     |i| {
+        // Technically, by the time we parse odelim, the text before has already been parsed
+        // in template_block. (and then trimmed manually)
         let (i, _) = whitespaced(tag(c.odelim.as_str()))(i)?;
         Ok((i, ()))
     }
 }
 
-/* > */
+/* space > space \n */
 fn cdelim<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
     |i| {
-        let (i, _) = whitespaced(pair(tag(c.cdelim.as_str()), multispace0))(i)?;
+        //let (i, _) = whitespaced(pair(tag(c.cdelim.as_str()), multispace0))(i)?;
+        let (i, _) = pair(whitespaced(tag(c.cdelim.as_str())), opt(char('\n')))(i)?;
         Ok((i, ()))
     }
 }
@@ -143,6 +148,7 @@ fn transform_block<'a>(
     |i| {
         let (i, _) = named_tag(c, c.transform.as_str())(i)?;
         let (i, transform) = is_not(c.odelim.as_str())(i)?;
+
         let (i, _) = named_tag(c, c.to.as_str())(i)?;
         let (i, blocks) = many0(template_block(c))(i)?;
         let (i, _) = named_tag(c, c.end.as_str())(i)?;
@@ -150,11 +156,23 @@ fn transform_block<'a>(
         Ok((
             i,
             Rc::new(directive::Transform {
-                transform: transform.to_string(),
+                transform: trim_keep_newline(transform),
                 blocks,
             }),
         ))
     }
+}
+
+/* like &str::trim_end but not removing \n's */
+fn trim_keep_newline(s: &str) -> String {
+    // trims the end of a string of spaces and tabs
+    s.chars()
+        .rev()
+        .skip_while(|c| *c == ' ' || *c == '\t')
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect()
 }
 
 /* < if condition >
@@ -168,7 +186,7 @@ fn if_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, 
     |i| {
         let (i, (condition, blocks, _)) = tuple((
             if_line(c), 
-            many0(template_block(c)),
+            many0(template_block(c)), 
             named_tag(c, c.end.as_str()),
         ))(i)?;
 
@@ -277,6 +295,7 @@ mod tests {
     #[test]
     fn test_parse_template_str() {
         let template = indoc!(
+            // TODO: Text at the beginning
             r#"
             !% include ./test.html %!
 
@@ -284,35 +303,63 @@ mod tests {
                 Text inside an If
             !% end %!
 
+
             Some Text In between
+
 
             !% if true %!
                 !% include ./test.html %!
+
+                !% transform %!
+                    lua
+                !% to %!
+                    text
+                !% end %!
+
+                text ouside transform
             !% else %!
+                !% include ./test.html %!
+
                 Some Text Inside
             !% end %!
 
+
             Some Text Outside
-         "#
+
+            "#
         );
 
         let expected: Vec<TemplateBlock> = vec![
             Rc::new(directive::Include {
                 path: "./test.html".to_string(),
             }),
+            Rc::new("\n"),
             Rc::new(directive::If {
                 condition: "true".to_string(),
-                blocks: vec![Rc::new("Text inside an If\n".to_string())],
+                blocks: vec![Rc::new("    Text inside an If\n")],
             }),
-            Rc::new("Some Text In between\n\n".to_string()),
+            Rc::new("\n\nSome Text In between\n\n\n"),
             Rc::new(directive::IfElse {
                 condition: "true".to_string(),
-                if_blocks: vec![Rc::new(directive::Include {
-                    path: "./test.html".to_string(),
-                })],
-                else_blocks: vec![Rc::new("Some Text Inside\n".to_string())],
+                if_blocks: vec![
+                    Rc::new(directive::Include {
+                        path: "./test.html".to_string(),
+                    }),
+                    Rc::new("\n"),
+                    Rc::new(directive::Transform {
+                        transform: "        lua\n".to_string(),
+                        blocks: vec![Rc::new("        text\n")],
+                    }),
+                    Rc::new("\n    text ouside transform\n"),
+                ],
+                else_blocks: vec![
+                    Rc::new(directive::Include {
+                        path: "./test.html".to_string(),
+                    }),
+                    Rc::new("\n    Some Text Inside\n"),
+                ],
             }),
-            Rc::new("Some Text Outside\n".to_string()),
+            Rc::new("\n\nSome Text Outside\n\n"),
         ];
 
         let result = parse_template_str(&PARSER_CONFIG, template).unwrap().1;
@@ -322,7 +369,7 @@ mod tests {
 
     #[test]
     fn test_odelim() {
-        let input = "!%";
+        let input = "   !%";
         let expected = Ok(("", ()));
         let result = odelim(&PARSER_CONFIG)(input);
         assert_eq!(result, expected);
@@ -330,8 +377,8 @@ mod tests {
 
     #[test]
     fn test_cdelim() {
-        let input = "%!";
-        let expected = Ok(("", ()));
+        let input = "%!   \n ";
+        let expected = Ok((" ", ()));
         let result = cdelim(&PARSER_CONFIG)(input);
         assert_eq!(result, expected);
     }
@@ -353,18 +400,19 @@ mod tests {
         let input = indoc!(
             r#"
                 !% if condition %!
-                text
-                text
-                !% end %!
+                    text
+                    text
+                    !% end %!
             "#
         );
 
         let expected = directive::If {
             condition: "condition".to_string(),
-            blocks: vec![Rc::new("text\ntext\n")],
+            blocks: vec![Rc::new("    text\n    text\n")],
         };
 
         let result = if_block(&PARSER_CONFIG)(input).unwrap().1;
+        dbg!(&result);
         assert_eq!(format!("{:?}", result), format!("{:?}", expected));
     }
 
@@ -380,7 +428,9 @@ mod tests {
     #[test]
     fn test_named_tag() {
         let input = "!% name %!";
-        let result = named_tag(&PARSER_CONFIG, "name")(input).unwrap().1;
+        let result = named_tag(&PARSER_CONFIG, "name")(input);
+        let expected = Ok(("", ()));
+        assert_eq!(result, expected);
         // Tag doesnt return, but we can test the unwrap
     }
 
@@ -422,16 +472,18 @@ mod tests {
         let input = indoc!(
             r#"
                 !% transform %!
-                luacode
+                    luacode
+                    luacode
                 !% to %!
-                text
+                    text
+                    text
                 !% end %!
             "#
         );
 
         let expected = directive::Transform {
-            transform: "luacode\n".to_string(),
-            blocks: vec![Rc::new("text\n")],
+            transform: "    luacode\n    luacode\n".to_string(),
+            blocks: vec![Rc::new("    text\n    text\n")],
         };
 
         let result = transform_block(&PARSER_CONFIG)(input).unwrap().1;
