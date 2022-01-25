@@ -55,3 +55,15 @@ impl Generator for Include {
         Ok(self.path.as_str())
     }
 }
+
+#[derive(Debug, Clone)]
+pub(super) struct Transform {
+    pub transform: String,
+    pub blocks: Vec<Rc<dyn Generator>>,
+}
+
+impl Generator for Transform {
+    fn run(&self) -> Result<&str> {
+        todo!()
+    }
+}
