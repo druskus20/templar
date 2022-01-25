@@ -1,5 +1,8 @@
 // https://github.com/fflorent/nom_locate/ Line numbers?
 
+/*
+ * A template parser that allows for runtime configuration using ParserConfig
+ */
 use super::template::TemplateBlock;
 use super::{directive, template};
 use super::{directive::Generator, template::Template};
@@ -19,17 +22,6 @@ use nom::{
     sequence::{delimited, pair, terminated},
     IResult,
 };
-
-// TODO: make this a struct at some point
-// mod constants {
-//     pub(super) const ODELIM: &str = "!!%";
-//     pub(super) const CDELIM: &str = "%!!";
-//     pub(super) const COMMENT: &str = "##";
-//     pub(super) const IF: &str = "if";
-//     pub(super) const ELSE: &str = "else";
-//     pub(super) const END: &str = "end";
-//     pub(super) const INCLUDE: &str = "include";
-// }
 
 #[derive(Debug, Clone)]
 pub struct ParserConfig {
@@ -78,6 +70,8 @@ fn template_chunk<'a>(
 ) -> impl FnMut(&'a str) -> IResult<&'a str, TemplateBlock> {
     alt((
         include_block(c),
+        if_block(c),
+        if_else_block(c),
         // Text
         map(is_not(c.cdelim.as_str()), |t: &str| {
             let boxed_text: TemplateBlock = Rc::new(t.to_string());
@@ -108,6 +102,7 @@ fn include_block<'a>(
     }
 }
 
+/* < */
 fn odelim<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
     move |i| {
         let (i, _) = whitespaced(tag(c.odelim.as_str()))(i)?;
@@ -115,6 +110,7 @@ fn odelim<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()
     }
 }
 
+/* > */
 fn cdelim<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
     move |i| {
         let (i, _) = whitespaced(pair(tag(c.cdelim.as_str()), multispace0))(i)?;
@@ -122,6 +118,7 @@ fn cdelim<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()
     }
 }
 
+// Wraps another parser to allow for whitespaces
 fn whitespaced<'a, O1, E, P>(p: P) -> impl FnMut(&'a str) -> IResult<&'a str, O1, E>
 where
     P: Parser<&'a str, O1, E>,
@@ -236,6 +233,65 @@ mod tests {
                 comment: "//".to_string(),
             }
         };
+    }
+
+    // Use Debug to compare the output for the purpose of testing. (since Eq / ParialEq are not
+    // object-safe)
+    fn compare_vec_templateblocks(t1: Vec<TemplateBlock>, t2: Vec<TemplateBlock>) {
+        assert_eq!(t1.len(), t2.len());
+        for (i, j) in t1.iter().zip(t2.iter()) {
+            compare_templateblocks(i, j);
+        }
+    }
+
+    fn compare_templateblocks(t1: &TemplateBlock, t2: &TemplateBlock) {
+        assert_eq!(format!("{:?}", t1), format!("{:?}", t2))
+    }
+
+    #[test]
+    fn test_parse_template_str() {
+        let template = indoc!(
+            r#"
+            !% include ./test.html %!
+
+            !% if true %!
+                Text inside an If
+            !% end %!
+
+            Some Text In between
+
+            !% if true %!
+                !% include ./test.html %!
+            !% else %!
+                Some Text Inside
+            !% end %!
+
+            Some Text Outside
+         "#
+        );
+
+        let expected: Vec<TemplateBlock> = vec![
+            Rc::new(directive::Include {
+                path: "./test.html".to_string(),
+            }),
+            Rc::new(directive::If {
+                condition: "true".to_string(),
+                blocks: vec![Rc::new("Text inside an If\n".to_string())],
+            }),
+            Rc::new("Some Text In between\n\n".to_string()),
+            Rc::new(directive::IfElse {
+                condition: "true".to_string(),
+                if_blocks: vec![Rc::new(directive::Include {
+                    path: "./test.html".to_string(),
+                })],
+                else_blocks: vec![Rc::new("Some Text Inside\n".to_string())],
+            }),
+            Rc::new("Some Text Outside\n".to_string()),
+        ];
+
+        let result = parse_template_str(&PARSER_CONFIG, template).unwrap().1;
+        dbg!(&result);
+        compare_vec_templateblocks(result, expected);
     }
 
     #[test]
