@@ -89,11 +89,11 @@ fn template_block<'a>(
 fn include_block<'a>(
     c: &'a ParserConfig,
 ) -> impl FnMut(&'a str) -> IResult<&'a str, TemplateBlock> {
-    move |i| {
+    |i| {
         let (i, (_, path)) = delimited(
-            odelim(&c),
+            odelim(c),
             pair(tag(c.include.as_str()), is_not(c.cdelim.as_str())),
-            cdelim(&c),
+            cdelim(c),
         )(i)?;
 
         Ok((
@@ -107,7 +107,7 @@ fn include_block<'a>(
 
 /* < */
 fn odelim<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
-    move |i| {
+    |i| {
         let (i, _) = whitespaced(tag(c.odelim.as_str()))(i)?;
         Ok((i, ()))
     }
@@ -115,7 +115,7 @@ fn odelim<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()
 
 /* > */
 fn cdelim<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
-    move |i| {
+    |i| {
         let (i, _) = whitespaced(pair(tag(c.cdelim.as_str()), multispace0))(i)?;
         Ok((i, ()))
     }
@@ -140,7 +140,7 @@ where
 fn transform_block<'a>(
     c: &'a ParserConfig,
 ) -> impl FnMut(&'a str) -> IResult<&'a str, TemplateBlock> {
-    move |i| {
+    |i| {
         let (i, _) = named_tag(c, c.transform.as_str())(i)?;
         let (i, transform) = is_not(c.odelim.as_str())(i)?;
         let (i, _) = named_tag(c, c.to.as_str())(i)?;
@@ -165,7 +165,7 @@ fn transform_block<'a>(
  */
 #[rustfmt::skip]
 fn if_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, TemplateBlock> {
-    move |i| {
+    |i| {
         let (i, (condition, blocks, _)) = tuple((
             if_line(c), 
             many0(template_block(c)),
@@ -184,11 +184,11 @@ fn if_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, 
 
 /* < if condition > */
 fn if_line<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
-    move |i| {
+    |i| {
         let (i, (_, condition)) = delimited(
-            odelim(&c),
+            odelim(c),
             pair(tag(c.if_.as_str()), is_not(c.cdelim.as_str())),
-            cdelim(&c),
+            cdelim(c),
         )(i)?;
         Ok((i, condition.trim()))
     }
@@ -219,7 +219,7 @@ fn named_tag<'a>(
 fn if_else_block<'a>(
     c: &'a ParserConfig,
 ) -> impl FnMut(&'a str) -> IResult<&'a str, TemplateBlock> {
-    move |i| {
+    |i| {
         // (&str, (&str, Vec<Rc<dyn templating::directive::Generator>>, &str))
         let (i, condition) = if_line(c)(i)?;
         let (i, if_blocks) = many0(template_block(c))(i)?;
@@ -381,6 +381,7 @@ mod tests {
     fn test_named_tag() {
         let input = "!% name %!";
         let result = named_tag(&PARSER_CONFIG, "name")(input).unwrap().1;
+        // Tag doesnt return, but we can test the unwrap
     }
 
     #[test]
