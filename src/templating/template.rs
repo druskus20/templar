@@ -2,8 +2,10 @@ use std::{fmt::Debug, path::PathBuf, rc::Rc};
 
 use super::directive::Generator;
 
-use super::parser;
+use super::parser::{self, ParserConfig};
 use anyhow::Result;
+
+pub(super) type TemplateBlock = Rc<dyn Generator>;
 
 #[derive(Debug, Clone)]
 pub(super) struct Template {
@@ -11,11 +13,12 @@ pub(super) struct Template {
     pub blocks: Vec<Rc<dyn Generator>>,
 }
 
-impl TryFrom<PathBuf> for Template {
-    type Error = anyhow::Error;
-
-    fn try_from(value: PathBuf) -> Result<Self> {
-        let file_contents = std::fs::read_to_string(value)?;
-        parser::parse_template(&file_contents)
+impl Template {
+    pub(super) fn generate(config: ParserConfig, path: PathBuf) -> Result<Self> {
+        let file_contents = std::fs::read_to_string(path)?;
+        match parser::parse_template_str(&config, &file_contents) {
+            Ok((_, blocks)) => Ok(Template { blocks }),
+            Err(e) => anyhow::bail!("{}", e), // Rethrow the error (lifetimes stuff)
+        }
     }
 }

@@ -1,9 +1,13 @@
 // https://github.com/fflorent/nom_locate/ Line numbers?
 
-use super::directive;
+use super::template::TemplateBlock;
+use super::{directive, template};
 use super::{directive::Generator, template::Template};
 use anyhow::Result;
+use nom::character::complete::{multispace0, space0};
+use nom::error::ParseError;
 use nom::sequence::{self, tuple};
+use nom::Parser;
 use std::rc::Rc;
 
 use nom::{
@@ -16,221 +20,323 @@ use nom::{
     IResult,
 };
 
-// Parses a raw template string into a Template
-pub(super) fn parse_template(raw_template: &str) -> Result<Template> {
-    match template(raw_template) {
-        Ok((_, blocks)) => Ok(Template { blocks }),
-        Err(e) => anyhow::bail!("{}", e), // Rethrow the error (lifetimes stuff)
+// TODO: make this a struct at some point
+// mod constants {
+//     pub(super) const ODELIM: &str = "!!%";
+//     pub(super) const CDELIM: &str = "%!!";
+//     pub(super) const COMMENT: &str = "##";
+//     pub(super) const IF: &str = "if";
+//     pub(super) const ELSE: &str = "else";
+//     pub(super) const END: &str = "end";
+//     pub(super) const INCLUDE: &str = "include";
+// }
+
+#[derive(Debug, Clone)]
+pub struct ParserConfig {
+    pub(super) odelim: String,
+    pub(super) cdelim: String,
+    pub(super) comment: String,
+    pub(super) if_: String,
+    pub(super) else_: String,
+    pub(super) end: String,
+    pub(super) include: String,
+}
+
+impl Default for ParserConfig {
+    fn default() -> Self {
+        ParserConfig {
+            odelim: "!!%".to_string(),
+            cdelim: "%!!".to_string(),
+            comment: "##".to_string(),
+            if_: "if".to_string(),
+            else_: "else".to_string(),
+            end: "end".to_string(),
+            include: "include".to_string(),
+        }
     }
 }
 
-// PARSER CODE
-const OPENING_MARK: &str = "!!%";
-const CLOSING_MARK: &str = "%!!";
-
-/*
- * text_outisde_chunk | template_chunk
- */
-fn template(input: &str) -> IResult<&str, Vec<Rc<dyn Generator>>> {
-    many0(alt((template_chunk, text_outside_chunk)))(input)
+#[rustfmt::skip]
+pub(super) fn parse_template_str<'a>(c: &'a ParserConfig, i: &'a str) -> IResult<&'a str, Vec<TemplateBlock>> {
+    many0(
+        alt((
+            template_chunk(&c),
+            // Text
+            map(is_not(c.odelim.as_str()), |t: &str| {
+                let boxed_text: TemplateBlock = Rc::new(t.trim().to_string());
+                boxed_text
+            })
+        )),
+    )(i)
 }
 
 /*
  * text_inside_chunk | if_block | if_else_block ...
  */
-fn template_chunk(input: &str) -> IResult<&str, Rc<dyn Generator>> {
+fn template_chunk<'a>(
+    c: &'a ParserConfig,
+) -> impl FnMut(&'a str) -> IResult<&'a str, TemplateBlock> {
     alt((
-        useless_block_with_text,
-        text_inside_chunk,
-        if_block,
-        //if_else_block,
-    ))(input)
-}
-
-/*
- * < include condition >
- */
-fn include_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
-    let (rest, path) =
-        delimited(tag(OPENING_MARK), is_not(CLOSING_MARK), tag(CLOSING_MARK))(input)?;
-
-    Ok((
-        rest,
-        Rc::new(directive::Include {
-            path: path.to_string(),
+        include_block(c),
+        // Text
+        map(is_not(c.cdelim.as_str()), |t: &str| {
+            let boxed_text: TemplateBlock = Rc::new(t.to_string());
+            boxed_text
         }),
     ))
 }
 
 /*
- * < if condition
+ * < include str >
+ */
+fn include_block<'a>(
+    c: &'a ParserConfig,
+) -> impl FnMut(&'a str) -> IResult<&'a str, TemplateBlock> {
+    move |i| {
+        let (i, (_, path)) = delimited(
+            odelim(&c),
+            pair(tag(c.include.as_str()), is_not(c.cdelim.as_str())),
+            cdelim(&c),
+        )(i)?;
+
+        Ok((
+            i,
+            Rc::new(directive::Include {
+                path: path.trim().to_string(),
+            }),
+        ))
+    }
+}
+
+fn odelim<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
+    move |i| {
+        let (i, _) = whitespaced(tag(c.odelim.as_str()))(i)?;
+        Ok((i, ()))
+    }
+}
+
+fn cdelim<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
+    move |i| {
+        let (i, _) = whitespaced(pair(tag(c.cdelim.as_str()), multispace0))(i)?;
+        Ok((i, ()))
+    }
+}
+
+fn whitespaced<'a, O1, E, P>(p: P) -> impl FnMut(&'a str) -> IResult<&'a str, O1, E>
+where
+    P: Parser<&'a str, O1, E>,
+    E: ParseError<&'a str>,
+{
+    delimited(space0, p, space0)
+}
+
+/* < if condition >
  *   template_block
  *   template_block
  *   ...
- * >
- * < else
+ * < end >
+ */
+#[rustfmt::skip]
+fn if_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, TemplateBlock> {
+    move |i| {
+        // (&str, (&str, Vec<Rc<dyn templating::directive::Generator>>, &str))
+        let (i, (condition, blocks, _)) = tuple((
+            if_line(c), 
+            many0(template_chunk(c)),
+            end_tag(c),
+        ))(i)?;
+
+        Ok((
+            i,
+            Rc::new(directive::If {
+                condition: condition.to_string(),
+                blocks,
+            }),
+        ))
+    }
+}
+
+/* < if condition > */
+fn if_line<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
+    move |i| {
+        let (i, (_, condition)) = delimited(
+            odelim(&c),
+            pair(tag(c.if_.as_str()), is_not(c.cdelim.as_str())),
+            cdelim(&c),
+        )(i)?;
+        Ok((i, condition.trim()))
+    }
+}
+
+// < end >
+fn end_tag<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
+    move |i| {
+        let (i, _) = delimited(odelim(c), tag(c.end.as_str()), cdelim(c))(i)?;
+        Ok((i, ()))
+    }
+}
+
+/*
+ * < if condition >
+ *   template_block
+ *   template_block
+ *   ...
+ * < else >
  *  template_block
  *  template_block
  *  ...
- * >
+ * < end >
  */
-fn if_else_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
-    let (rest, ((condition, if_blocks), else_blocks)) = pair(
-        delimited(
-            tag(OPENING_MARK),
-            pair(if_line, many0(template_chunk)),
-            tag(CLOSING_MARK),
-        ),
-        delimited(tag(OPENING_MARK), many0(template_chunk), tag(CLOSING_MARK)),
-    )(input)?;
+fn if_else_block<'a>(
+    c: &'a ParserConfig,
+) -> impl FnMut(&'a str) -> IResult<&'a str, TemplateBlock> {
+    move |i| {
+        // (&str, (&str, Vec<Rc<dyn templating::directive::Generator>>, &str))
+        let (i, condition) = if_line(c)(i)?;
+        let (i, if_blocks) = many0(template_chunk(c))(i)?;
+        let (i, _) = else_tag(c)(i)?;
+        let (i, else_blocks) = many0(template_chunk(c))(i)?;
+        let (i, _) = end_tag(c)(i)?;
 
-    Ok((
-        rest,
-        Rc::new(directive::IfElse {
-            condition: condition.to_string(),
-            if_blocks,
-            else_blocks,
-        }),
-    ))
+        Ok((
+            i,
+            Rc::new(directive::IfElse {
+                condition: condition.trim().to_string(),
+                if_blocks,
+                else_blocks,
+            }),
+        ))
+    }
 }
 
-/* < if condition
- *   template_block
- *   template_block
- *   ...
- * >
- */
-fn if_block(input: &str) -> IResult<&str, Rc<dyn Generator>> {
-    let (rest, (condition, blocks)) = delimited(
-        tag(OPENING_MARK),
-        pair(if_line, many0(template_chunk)),
-        tag(CLOSING_MARK),
-    )(input)?;
-
-    Ok((rest, Rc::new(directive::If { condition, blocks })))
-}
-
-/* if condition \n */
-fn if_line(input: &str) -> IResult<&str, String> {
-    let (rest, (_, condition, _)) = tuple((tag("if"), is_not("\n"), tag("\n")))(input)?;
-    Ok((rest, condition.to_string()))
-}
-
-/*
- * < useless_text
- *   template_block
- *   template_block
- *   ...
- * >
- */
-fn useless_block_with_text(input: &str) -> IResult<&str, Rc<dyn Generator>> {
-    let (rest, (useless_text, blocks)) = delimited(
-        tag(OPENING_MARK),
-        pair(useless_text, many0(template_chunk)),
-        tag(CLOSING_MARK),
-    )(input)?;
-
-    Ok((
-        rest,
-        Rc::new(directive::UselessBlockWithText {
-            useless_text,
-            blocks,
-        }),
-    ))
-}
-
-/* text \n */
-fn useless_text(input: &str) -> IResult<&str, String> {
-    terminated(
-        map(is_not("\n"), |t: &str| t.trim().to_string()),
-        char('\n'),
-    )(input)
-}
-
-// TODO: Change these 2
-fn text_outside_chunk(input: &str) -> IResult<&str, Rc<dyn Generator>> {
-    map(is_not(OPENING_MARK), |t: &str| {
-        let boxed_text: Rc<dyn Generator> = Rc::new(t.trim().to_string());
-        boxed_text
-    })(input)
-}
-
-fn text_inside_chunk(input: &str) -> IResult<&str, Rc<dyn Generator>> {
-    map(is_not(CLOSING_MARK), |t: &str| {
-        let boxed_text: Rc<dyn Generator> = Rc::new(t.trim().to_string());
-        boxed_text
-    })(input)
+// < else >
+fn else_tag<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
+    move |i| {
+        let (i, _) = delimited(odelim(c), tag(c.else_.as_str()), cdelim(c))(i)?;
+        Ok((i, ()))
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use indoc::indoc;
+    use lazy_static::lazy_static;
     use std::fmt::format;
 
-    use super::*;
+    lazy_static! {
+        static ref PARSER_CONFIG: ParserConfig = {
+            ParserConfig {
+                odelim: "!%".to_string(),
+                cdelim: "%!".to_string(),
+                include: "include".to_string(),
+                if_: "if".to_string(),
+                else_: "else".to_string(),
+                end: "end".to_string(),
+                comment: "//".to_string(),
+            }
+        };
+    }
 
     #[test]
-    fn test_template() {
-        let input = format!(
-            r#"
-     textbefore
-     {} directive1
-       text1
-     {}
-     textbetween
-     {} directive2
-       text2
-     {}
-     textafter
-     "#,
-            OPENING_MARK, CLOSING_MARK, OPENING_MARK, CLOSING_MARK
-        );
-        let expected = Template {
-            blocks: vec![
-                Rc::new("textbefore".to_string()),
-                Rc::new(directive::UselessBlockWithText {
-                    useless_text: "directive1".to_string(),
-                    blocks: vec![Rc::new("text1")],
-                }),
-                Rc::new("textbetween".to_string()),
-                Rc::new(directive::UselessBlockWithText {
-                    useless_text: "directive2".to_string(),
-                    blocks: vec![Rc::new("text2")],
-                }),
-                Rc::new("textafter".to_string()),
-            ],
+    fn test_odelim() {
+        let input = "!%";
+        let expected = Ok(("", ()));
+        let result = odelim(&PARSER_CONFIG)(input);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_cdelim() {
+        let input = "%!";
+        let expected = Ok(("", ()));
+        let result = cdelim(&PARSER_CONFIG)(input);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_parse_include_block() {
+        let input = "!% include path %!";
+        let expected = directive::Include {
+            path: "path".to_string(),
         };
 
-        let result = Template {
-            blocks: template(input.as_str()).unwrap().1,
-        };
-
+        let result = include_block(&PARSER_CONFIG)(input).unwrap().1;
+        //let result = include_block(input.as_str()).unwrap().1;
         assert_eq!(format!("{:?}", result), format!("{:?}", expected));
     }
+
     #[test]
-    fn test_template_block() {
-        // < directive1
-        //   < directive2
-        //     text
-        //     >
-        //   text2
-        // >
-        let input = format!(
-            "{} directive1 \n{} directive2 \ntext{} text2{}",
-            OPENING_MARK, OPENING_MARK, CLOSING_MARK, CLOSING_MARK
+    fn test_if_block() {
+        let input = indoc!(
+            r#"
+                !% if condition %!
+                text
+                text
+                !% end %!
+            "#
         );
 
-        let expected: Rc<dyn Generator> = Rc::new(directive::UselessBlockWithText {
-            useless_text: "directive1".to_string(),
-            blocks: vec![
-                Rc::new(directive::UselessBlockWithText {
-                    useless_text: "directive2".to_string(),
-                    blocks: vec![Rc::new("text".to_string())],
-                }),
-                Rc::new("text2".to_string()),
-            ],
-        });
+        let expected = directive::If {
+            condition: "condition".to_string(),
+            blocks: vec![Rc::new("text\ntext\n")],
+        };
 
-        let result = template_chunk(input.as_str()).unwrap().1;
+        let result = if_block(&PARSER_CONFIG)(input).unwrap().1;
+        assert_eq!(format!("{:?}", result), format!("{:?}", expected));
+    }
+
+    #[test]
+    fn test_if_line() {
+        let input = "!% if condition %!";
+        let expected = "condition";
+
+        let result = if_line(&PARSER_CONFIG)(input).unwrap().1;
+        assert_eq!(format!("{:?}", result), format!("{:?}", expected));
+    }
+
+    #[test]
+    fn test_else_tag() {
+        let input = "!% else %!";
+        let result = else_tag(&PARSER_CONFIG)(input).unwrap().1;
+    }
+
+    #[test]
+    fn test_end_tag() {
+        let input = "!% end %!";
+        let result = end_tag(&PARSER_CONFIG)(input).unwrap().1;
+    }
+
+    #[test]
+    fn test_if_else_block() {
+        let input = indoc!(
+            r#"
+                !% if condition %!
+                text
+                !% else %!
+                text
+                !% end %!
+            "#
+        );
+
+        let expected = directive::IfElse {
+            condition: "condition".to_string(),
+            if_blocks: vec![Rc::new("text\n")],
+            else_blocks: vec![Rc::new("text\n")],
+        };
+
+        let result = if_else_block(&PARSER_CONFIG)(input).unwrap().1;
+        assert_eq!(format!("{:?}", result), format!("{:?}", expected));
+    }
+
+    #[test]
+    fn test_include_block() {
+        let input = "!% include ./some/path %!";
+        let expected = directive::Include {
+            path: "./some/path".to_string(),
+        };
+
+        let result = include_block(&PARSER_CONFIG)(input).unwrap().1;
         assert_eq!(format!("{:?}", result), format!("{:?}", expected));
     }
 }

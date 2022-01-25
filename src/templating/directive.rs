@@ -55,27 +55,3 @@ impl Generator for Include {
         Ok(self.path.as_str())
     }
 }
-
-#[derive(Debug, Clone)]
-pub(super) struct DoNothing {
-    pub text: String,
-}
-
-impl Generator for DoNothing {
-    fn run(&self) -> Result<&str> {
-        Ok(self.text.as_str())
-    }
-}
-
-// TODO: Remove this, this is only for testing
-#[derive(Debug, Clone)]
-pub(super) struct UselessBlockWithText {
-    pub useless_text: String,
-    pub blocks: Vec<Rc<dyn Generator>>,
-}
-
-impl Generator for UselessBlockWithText {
-    fn run(&self) -> Result<&str> {
-        Ok(self.useless_text.as_str())
-    }
-}
