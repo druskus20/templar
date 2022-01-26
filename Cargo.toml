@@ -10,3 +10,4 @@ indoc = "1.0.3"
 [dependencies]
 anyhow = "1.0.52"
 nom = "7.1.0"
+rlua = "0.18.0"

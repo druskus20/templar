@@ -3,7 +3,7 @@
 /*
  * A template parser that allows for runtime configuration using ParserConfig
  */
-use super::template::TemplateBlock;
+use super::template::DynGenerator;
 use super::{directive, template};
 use super::{directive::Generator, template::Template};
 use anyhow::Result;
@@ -11,7 +11,6 @@ use nom::character::complete::{multispace0, space0};
 use nom::combinator::opt;
 use nom::error::ParseError;
 use nom::sequence::{self, preceded, tuple};
-use nom::Parser;
 use std::rc::Rc;
 
 use nom::{
@@ -25,16 +24,16 @@ use nom::{
 };
 
 #[derive(Debug, Clone)]
-pub struct ParserConfig {
-    pub(super) odelim: String,
-    pub(super) cdelim: String,
-    pub(super) comment: String,
-    pub(super) if_: String,
-    pub(super) else_: String,
-    pub(super) end: String,
-    pub(super) include: String,
-    pub(super) transform: String,
-    pub(super) to: String,
+pub(crate) struct ParserConfig {
+    pub(crate) odelim: String,
+    pub(crate) cdelim: String,
+    pub(crate) comment: String,
+    pub(crate) if_: String,
+    pub(crate) else_: String,
+    pub(crate) end: String,
+    pub(crate) include: String,
+    pub(crate) transform: String,
+    pub(crate) to: String,
 }
 
 impl Default for ParserConfig {
@@ -53,24 +52,44 @@ impl Default for ParserConfig {
     }
 }
 
-#[rustfmt::skip]
-pub(super) fn parse_template_str<'a>(c: &'a ParserConfig, i: &'a str) -> IResult<&'a str, Vec<TemplateBlock>> {
-    many0(
-        alt((
-            template_block(&c),
-            // Text
-            map(is_not(c.odelim.as_str()), |t: &str| {
-                let boxed_text: TemplateBlock = Rc::new(t.trim().to_string());
-                boxed_text
-            })
-        )),
-    )(i)
+// TODO: this is hacky
+/* like &str::trim_end but not removing \n's */
+fn trim_keep_newline(s: &str) -> String {
+    // trims the end of a string of spaces and tabs
+    s.chars()
+        .rev()
+        .skip_while(|c| *c == ' ' || *c == '\t')
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect()
+}
+
+// Epic being abusive of the type system
+// we just invented trait type aliases
+// FnMut(I) -> IResult<I, O>  ===  Paser<I, O>
+// trait Parser<I, O>: FnMut(I) -> IResult<I, O> {}
+// impl<T, I, O> Parser<I, O> for T where T: FnMut(I) -> IResult<I, O> {}
+// Unfortunately, dyn Generator is not infered correctly
+
+pub(super) fn parse_template_str<'a>(
+    c: &'a ParserConfig,
+    i: &'a str,
+) -> IResult<&'a str, Vec<DynGenerator>> {
+    many0(alt((
+        template_block(&c),
+        // Text
+        map(is_not(c.odelim.as_str()), |t: &str| {
+            let boxed_text: DynGenerator = Rc::new(t.trim().to_string());
+            boxed_text
+        }),
+    )))(i)
 }
 
 /* Either text or some directive */
 fn template_block<'a>(
     c: &'a ParserConfig,
-) -> impl FnMut(&'a str) -> IResult<&'a str, TemplateBlock> {
+) -> impl FnMut(&'a str) -> IResult<&'a str, DynGenerator> {
     alt((
         include_block(c),
         if_block(c),
@@ -79,7 +98,7 @@ fn template_block<'a>(
         // NOTE: cdelim? odelim?
         // Text
         map(is_not(c.odelim.as_str()), |t: &str| {
-            let boxed_text: TemplateBlock = Rc::new(trim_keep_newline(t));
+            let boxed_text: DynGenerator = Rc::new(trim_keep_newline(t));
             boxed_text
         }),
     ))
@@ -88,22 +107,19 @@ fn template_block<'a>(
 /*
  * < include str >
  */
-fn include_block<'a>(
-    c: &'a ParserConfig,
-) -> impl FnMut(&'a str) -> IResult<&'a str, TemplateBlock> {
-    |i| {
+fn include_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, DynGenerator> {
+    |i: &'a str| {
         let (i, (_, path)) = delimited(
             odelim(c),
             pair(tag(c.include.as_str()), is_not(c.cdelim.as_str())),
             cdelim(c),
         )(i)?;
 
-        Ok((
-            i,
-            Rc::new(directive::Include {
-                path: path.trim().to_string(),
-            }),
-        ))
+        let include_block: Rc<dyn Generator> = Rc::new(directive::Include {
+            path: path.trim().to_string(),
+        });
+
+        Ok((i, include_block))
     }
 }
 
@@ -120,7 +136,6 @@ fn odelim<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()
 /* space > space \n */
 fn cdelim<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
     |i| {
-        //let (i, _) = whitespaced(pair(tag(c.cdelim.as_str()), multispace0))(i)?;
         let (i, _) = pair(whitespaced(tag(c.cdelim.as_str())), opt(char('\n')))(i)?;
         Ok((i, ()))
     }
@@ -129,7 +144,7 @@ fn cdelim<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, ()
 // Wraps another parser to allow for whitespaces
 fn whitespaced<'a, O1, E, P>(p: P) -> impl FnMut(&'a str) -> IResult<&'a str, O1, E>
 where
-    P: Parser<&'a str, O1, E>,
+    P: nom::Parser<&'a str, O1, E>,
     E: ParseError<&'a str>,
 {
     delimited(space0, p, space0)
@@ -144,7 +159,7 @@ where
  */
 fn transform_block<'a>(
     c: &'a ParserConfig,
-) -> impl FnMut(&'a str) -> IResult<&'a str, TemplateBlock> {
+) -> impl FnMut(&'a str) -> IResult<&'a str, DynGenerator> {
     |i| {
         let (i, _) = named_tag(c, c.transform.as_str())(i)?;
         let (i, transform) = is_not(c.odelim.as_str())(i)?;
@@ -163,18 +178,6 @@ fn transform_block<'a>(
     }
 }
 
-/* like &str::trim_end but not removing \n's */
-fn trim_keep_newline(s: &str) -> String {
-    // trims the end of a string of spaces and tabs
-    s.chars()
-        .rev()
-        .skip_while(|c| *c == ' ' || *c == '\t')
-        .collect::<String>()
-        .chars()
-        .rev()
-        .collect()
-}
-
 /* < if condition >
  *   template_block
  *   template_block
@@ -182,7 +185,7 @@ fn trim_keep_newline(s: &str) -> String {
  * < end >
  */
 #[rustfmt::skip]
-fn if_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, TemplateBlock> {
+fn if_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, DynGenerator> {
     |i| {
         let (i, (condition, blocks, _)) = tuple((
             if_line(c), 
@@ -234,9 +237,7 @@ fn named_tag<'a>(
  *  ...
  * < end >
  */
-fn if_else_block<'a>(
-    c: &'a ParserConfig,
-) -> impl FnMut(&'a str) -> IResult<&'a str, TemplateBlock> {
+fn if_else_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, DynGenerator> {
     |i| {
         // (&str, (&str, Vec<Rc<dyn templating::directive::Generator>>, &str))
         let (i, condition) = if_line(c)(i)?;
@@ -281,14 +282,14 @@ mod tests {
 
     // Use Debug to compare the output for the purpose of testing. (since Eq / ParialEq are not
     // object-safe)
-    fn compare_vec_templateblocks(t1: Vec<TemplateBlock>, t2: Vec<TemplateBlock>) {
+    fn compare_vec_templateblocks(t1: Vec<DynGenerator>, t2: Vec<DynGenerator>) {
         assert_eq!(t1.len(), t2.len());
         for (i, j) in t1.iter().zip(t2.iter()) {
             compare_templateblocks(i, j);
         }
     }
 
-    fn compare_templateblocks(t1: &TemplateBlock, t2: &TemplateBlock) {
+    fn compare_templateblocks(t1: &DynGenerator, t2: &DynGenerator) {
         assert_eq!(format!("{:?}", t1), format!("{:?}", t2))
     }
 
@@ -329,7 +330,7 @@ mod tests {
             "#
         );
 
-        let expected: Vec<TemplateBlock> = vec![
+        let expected: Vec<DynGenerator> = vec![
             Rc::new(directive::Include {
                 path: "./test.html".to_string(),
             }),
@@ -363,7 +364,6 @@ mod tests {
         ];
 
         let result = parse_template_str(&PARSER_CONFIG, template).unwrap().1;
-        dbg!(&result);
         compare_vec_templateblocks(result, expected);
     }
 
@@ -412,7 +412,6 @@ mod tests {
         };
 
         let result = if_block(&PARSER_CONFIG)(input).unwrap().1;
-        dbg!(&result);
         assert_eq!(format!("{:?}", result), format!("{:?}", expected));
     }
 
