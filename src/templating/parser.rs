@@ -3,14 +3,20 @@
 /*
  * A template parser that allows for runtime configuration using ParserConfig
  */
+
+/*
+ * TODO Nesting an If inside a transform (lua) block fails
+ * there's still a lot of work to do with edge cases
+ */
+
+use super::directive;
+use super::directive::Generator;
 use super::template::DynGenerator;
-use super::{directive, template};
-use super::{directive::Generator, template::Template};
-use anyhow::Result;
-use nom::character::complete::{multispace0, space0};
+
+use nom::character::complete::{alphanumeric0, alphanumeric1, space0, space1};
 use nom::combinator::opt;
 use nom::error::ParseError;
-use nom::sequence::{self, preceded, tuple};
+use nom::sequence::tuple;
 use std::rc::Rc;
 
 use nom::{
@@ -19,7 +25,7 @@ use nom::{
     character::complete::char,
     combinator::map,
     multi::many0,
-    sequence::{delimited, pair, terminated},
+    sequence::{delimited, pair},
     IResult,
 };
 
@@ -151,7 +157,7 @@ where
 }
 
 /*
- * < transform >
+ * < transform input_name >
  * lua
  * < to >
  * text
@@ -161,9 +167,8 @@ fn transform_block<'a>(
     c: &'a ParserConfig,
 ) -> impl FnMut(&'a str) -> IResult<&'a str, DynGenerator> {
     |i| {
-        let (i, _) = named_tag(c, c.transform.as_str())(i)?;
+        let (i, input_name) = transform_line(c)(i)?;
         let (i, transform) = is_not(c.odelim.as_str())(i)?;
-
         let (i, _) = named_tag(c, c.to.as_str())(i)?;
         let (i, blocks) = many0(template_block(c))(i)?;
         let (i, _) = named_tag(c, c.end.as_str())(i)?;
@@ -173,8 +178,22 @@ fn transform_block<'a>(
             Rc::new(directive::Transform {
                 transform: trim_keep_newline(transform),
                 blocks,
+                input_name: input_name.to_string(),
             }),
         ))
+    }
+}
+
+/* < transform input_name output_name > */
+fn transform_line<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
+    |i| {
+        let (i, (_, _, input_name)) = delimited(
+            odelim(c),
+            tuple((tag(c.transform.as_str()), space1, alphanumeric1)),
+            cdelim(c),
+        )(i)?;
+
+        Ok((i, input_name))
     }
 }
 
@@ -184,12 +203,11 @@ fn transform_block<'a>(
  *   ...
  * < end >
  */
-#[rustfmt::skip]
 fn if_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, DynGenerator> {
     |i| {
         let (i, (condition, blocks, _)) = tuple((
-            if_line(c), 
-            many0(template_block(c)), 
+            if_line(c),
+            many0(template_block(c)),
             named_tag(c, c.end.as_str()),
         ))(i)?;
 
@@ -215,13 +233,13 @@ fn if_line<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, &
     }
 }
 
-// < "tag_msg" >
+// < tag_name >
 fn named_tag<'a>(
     c: &'a ParserConfig,
-    tag_msg: &'a str,
+    tag_name: &'a str,
 ) -> impl FnMut(&'a str) -> IResult<&'a str, ()> {
     move |i| {
-        let (i, _) = delimited(odelim(c), tag(tag_msg), cdelim(c))(i)?;
+        let (i, _) = delimited(odelim(c), tag(tag_name), cdelim(c))(i)?;
         Ok((i, ()))
     }
 }
@@ -262,7 +280,6 @@ mod tests {
     use super::*;
     use indoc::indoc;
     use lazy_static::lazy_static;
-    use std::fmt::format;
 
     lazy_static! {
         static ref PARSER_CONFIG: ParserConfig = {
@@ -311,7 +328,7 @@ mod tests {
             !% if true %!
                 !% include ./test.html %!
 
-                !% transform %!
+                !% transform i %!
                     lua
                 !% to %!
                     text
@@ -350,6 +367,7 @@ mod tests {
                     Rc::new(directive::Transform {
                         transform: "        lua\n".to_string(),
                         blocks: vec![Rc::new("        text\n")],
+                        input_name: "i".to_string(),
                     }),
                     Rc::new("\n    text ouside transform\n"),
                 ],
@@ -470,7 +488,7 @@ mod tests {
     fn test_tranform_block() {
         let input = indoc!(
             r#"
-                !% transform %!
+                !% transform input %!
                     luacode
                     luacode
                 !% to %!
@@ -483,9 +501,19 @@ mod tests {
         let expected = directive::Transform {
             transform: "    luacode\n    luacode\n".to_string(),
             blocks: vec![Rc::new("    text\n    text\n")],
+            input_name: "input".to_string(),
         };
 
         let result = transform_block(&PARSER_CONFIG)(input).unwrap().1;
         assert_eq!(format!("{:?}", result), format!("{:?}", expected));
+    }
+
+    #[test]
+    fn test_transform_line() {
+        let input = "!% transform input %!";
+        let expected = Ok(("", "input"));
+
+        let result = transform_line(&PARSER_CONFIG)(input);
+        assert_eq!(result, expected);
     }
 }

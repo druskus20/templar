@@ -2,17 +2,15 @@ use std::{fmt::Debug, path::PathBuf, rc::Rc};
 
 use super::directive::Generator;
 
-use super::parser::{self, parse_template_str, ParserConfig};
+use super::parser::{self, ParserConfig};
 use anyhow::Result;
-
-use rlua::prelude::*;
 
 pub(super) type DynGenerator = Rc<dyn Generator>;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Template {
     //pub settings
-    blocks: Vec<Rc<dyn Generator>>,
+    blocks: Vec<DynGenerator>,
 }
 
 impl Template {
@@ -31,9 +29,10 @@ impl Template {
     pub(crate) fn process(&self) -> Result<String> {
         let mut output = String::new();
         rlua::Lua::new().context(|lua_context| -> Result<()> {
+            // TODO: Use trait Generator for this
             for block in &self.blocks {
-                let block_output = block.generate(lua_context)?;
-                output.push_str(block_output);
+                let block_output = block.generate(&lua_context)?;
+                output.push_str(block_output.as_str());
             }
             Ok(())
         })?;

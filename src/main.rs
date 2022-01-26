@@ -1,10 +1,8 @@
 #![allow(dead_code)]
-#![allow(unused_variables)]
+// TODO: Just for tests
 #![allow(unused_imports)]
 
 mod templating;
-
-use std::path::PathBuf;
 use templating::*;
 
 fn main() {
@@ -13,6 +11,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use indoc::indoc;
 
@@ -30,12 +29,37 @@ mod tests {
 
         let template_str = indoc!(
             r#"
-                <% include header.html %>
-                <% include footer.html %>
+                <% if "something" == "something" %>
+                text
+                <% if "something" == "NO" %>
+                text2
+                <% end %>
+                <% end %>
+                <% if "something" == "something" %>
+                text3
+                <% end %>
             "#
         );
 
         let t = templating::Template::parse_str(&config, template_str).unwrap();
-        dbg!(&t);
+        let _ = t.process().unwrap();
+        //println!("{}", r);
+
+        let template_str = indoc!(
+            r#"
+                <% transform input %>
+                local text = "wooo";
+                return text;
+                <% to %>
+                text1
+                text2
+                text3
+                <% end %>
+            "#
+        );
+
+        let t = templating::Template::parse_str(&config, template_str).unwrap();
+        let _ = t.process().unwrap();
+        //println!("{}", r);
     }
 }
