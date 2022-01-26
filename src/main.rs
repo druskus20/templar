@@ -6,7 +6,7 @@ mod templating;
 use templating::*;
 
 fn main() {
-    println!("Hello, world!");
+    println!("Hello, world!, \"main()\" is not yet implemented, however, however, there are tests");
 }
 
 #[cfg(test)]

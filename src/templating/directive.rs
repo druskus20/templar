@@ -7,10 +7,9 @@ use std::fmt::Debug;
 use super::{parser::ParserConfig, template::DynGenerator};
 
 pub(super) trait Generator: Debug {
-    /*
-     * Generates a String from a Directive. */
+    /* Generates a String from a Directive. */
     fn generate(&self, _: &LuaContext) -> Result<String> {
-        Ok("generated!".to_string())
+        todo!()
     }
 
     fn display(&self, _: ParserConfig) -> Result<String> {
