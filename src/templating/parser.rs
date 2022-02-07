@@ -13,7 +13,7 @@ use super::directive;
 use super::directive::Generator;
 use super::template::DynGenerator;
 
-use nom::character::complete::{alphanumeric0, alphanumeric1, space0, space1};
+use nom::character::complete::{alphanumeric1, space0, space1};
 use nom::combinator::opt;
 use nom::error::ParseError;
 use nom::sequence::tuple;

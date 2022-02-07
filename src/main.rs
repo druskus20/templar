@@ -1,9 +1,7 @@
 #![allow(dead_code)]
-// TODO: Just for tests
-#![allow(unused_imports)]
 
+mod config;
 mod templating;
-use templating::*;
 
 fn main() {
     println!("Hello, world!, \"main()\" is not yet implemented, however, however, there are tests");
