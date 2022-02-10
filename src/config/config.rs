@@ -42,6 +42,8 @@ pub(super) struct Rule {
     targets: Vec<PathBuf>,
     rules: Vec<Rule>,
     basepath: PathBuf,
+    /// This should not be used, its only for implementing ToLua
+    raw_targets: String,
 }
 
 impl<'lua> FromLua<'lua> for Rule {
@@ -56,8 +58,10 @@ impl<'lua> FromLua<'lua> for Rule {
                 .flat_map(|r| r.targets.clone())
                 .collect::<Vec<_>>();
 
+            let raw_targets: String = lua_table.get("targets")?;
+
             let mut targets =
-                calc_targets(lua_table.get("targets")?, basepath.clone()).map_err(|err| {
+                calc_targets(raw_targets.clone(), basepath.clone()).map_err(|err| {
                     rlua::Error::FromLuaConversionError {
                         to: "Rule",
                         from: "LuaValue",
@@ -74,6 +78,7 @@ impl<'lua> FromLua<'lua> for Rule {
                 targets,
                 rules,
                 basepath: basepath.into(),
+                raw_targets,
             })
         } else {
             Err(rlua::Error::FromLuaConversionError {
@@ -89,7 +94,7 @@ impl<'lua> ToLua<'lua> for Rule {
     fn to_lua(self, lua: rlua::Context<'lua>) -> rlua::Result<LuaValue<'lua>> {
         let hashmap: HashMap<&str, LuaValue> = hashmap!(
             "id" => self.id.to_lua(lua)?,
-            "targets" => self.targets.iter().map(|t| t.display().to_string()).collect::<Vec<String>>().to_lua(lua)?,
+            "targets" => self.raw_targets.to_lua(lua)?,
             "rules" => self.rules.to_lua(lua)?,
             "basepath" => self.basepath.display().to_string().to_lua(lua)?,
         );
@@ -104,7 +109,8 @@ fn calc_targets(path: String, basepath: String) -> Result<Vec<PathBuf>> {
     let path = path.replace("~", home.as_str());
 
     // Concatenate basepath with path
-    let basepath = if basepath.ends_with("/") {
+    // TODO: Hacky
+    let basepath = if basepath.ends_with("/") || basepath.is_empty() {
         basepath
     } else {
         format!("{}/", basepath)

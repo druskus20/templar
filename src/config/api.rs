@@ -20,7 +20,7 @@ macro_rules! set_lua_functions {
     }
 }
 
-pub fn define_lua_api(lua: &Lua) -> Result<()> {
+pub fn register_lua_api(lua: &Lua) -> Result<()> {
     lua.context(|lua_context| {
         set_lua_functions!(
             lua_context,
