@@ -13,3 +13,10 @@ This project is not released yet
 - No configuration overhead, `templar generate` is enough 
 - Fast and multithread
 
+## WIP 
+- [x] Basic Lua integration for configuration / Scripting
+- [x] Basic templating 
+- [ ] File generation
+- [ ] Parallel scheduling of rules
+- [ ] Document Lua API and templating syntax
+- [ ] Homepage

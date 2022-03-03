@@ -1,4 +1,6 @@
-function dump(o)
+local templar = require("templar")
+
+local dump = function(o)
    if type(o) == 'table' then
       local s = '{ '
       for k,v in pairs(o) do
@@ -11,10 +13,13 @@ function dump(o)
    end
 end
 
+local r = _templar_create_default_rule()
+templar_print_rule(r)
+
 print("Default rule ----\n")
-local default_rule = _create_default_rule()
+local default_rule = templar.create_default_rule()
 print(dump(default_rule))
-print_rule(default_rule)
+templar.print_rule(default_rule)
 
 print("\n\nRule from lua ----\n")
 local rule_from_lua = {
@@ -24,7 +29,7 @@ local rule_from_lua = {
    rules = {},
 }
 print(dump(rule_from_lua))
-print_rule(rule_from_lua)
+templar.print_rule(rule_from_lua)
 
 print("\n\nRule with nested rules ----\n")
 local rule_with_nested_rules = {
@@ -41,4 +46,4 @@ local rule_with_nested_rules = {
    },
 }
 print(dump(rule_with_nested_rules))
-print_rule(rule_with_nested_rules)
+templar.print_rule(rule_with_nested_rules)
