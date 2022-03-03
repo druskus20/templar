@@ -16,6 +16,7 @@ This project is not released yet
 ## WIP 
 - [x] Basic Lua integration for configuration / Scripting
 - [x] Basic templating 
+- [ ] Rule specificity for targets
 - [ ] File generation
 - [ ] Parallel scheduling of rules
 - [ ] Document Lua API and templating syntax

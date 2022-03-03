@@ -45,5 +45,6 @@ fn print_rule(lua_rule: Rule) -> Result<()> {
 // TODO:
 //#[export_lua]
 fn _create_default_rule() -> Result<Rule> {
+    dbg!(Rule::default());
     Ok(Rule::default())
 }

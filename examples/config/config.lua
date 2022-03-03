@@ -1,6 +1,6 @@
 local templar = require("templar")
 
-local dump = function(o)
+function dump(o)
    if type(o) == 'table' then
       local s = '{ '
       for k,v in pairs(o) do
@@ -12,9 +12,6 @@ local dump = function(o)
       return tostring(o)
    end
 end
-
-local r = _templar_create_default_rule()
-templar_print_rule(r)
 
 print("Default rule ----\n")
 local default_rule = templar.create_default_rule()

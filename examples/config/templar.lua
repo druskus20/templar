@@ -1,11 +1,11 @@
-local templar = {}
+local M = {}
 
-templar.print_rule = function(rule)
-  templar_print_rule(rule)
+function M.print_rule(rule) 
+  return templar_print_rule(rule)
 end
 
-templar.create_default_rule = function ()
-  _templar_create_default_rule()
+function M.create_default_rule()
+  return _templar_create_default_rule()
 end
 
-return templar
+return M
