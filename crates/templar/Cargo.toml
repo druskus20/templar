@@ -1,0 +1,15 @@
+[package]
+name = "templar"
+version = "0.1.0"
+edition = "2021"
+
+[dev-dependencies]
+lazy_static = "1.4.0"
+indoc = "1.0.3"
+tempdir = "0.3.7"
+
+[dependencies]
+anyhow = "1.0.52"
+glob = "0.3.0"
+nom = "7.1.0"
+rlua = "0.19.1"

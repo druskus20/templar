@@ -15,7 +15,6 @@ end
 
 print("Default rule ----\n")
 local default_rule = templar.create_default_rule()
-print(dump(default_rule))
 templar.print_rule(default_rule)
 
 print("\n\nRule from lua ----\n")
@@ -25,22 +24,20 @@ local rule_from_lua = {
    basepath = "./",
    rules = {},
 }
-print(dump(rule_from_lua))
 templar.print_rule(rule_from_lua)
 
 print("\n\nRule with nested rules ----\n")
 local rule_with_nested_rules = {
    id = "rule_with_nested_rules",
-   targets = "*",
+   targets = "templar.lua",
    basepath = "./",
    rules = {
       {
          id = "nested_rule",
-         targets = "*",
+         targets = "config.lua",
          basepath = "./",
          rules = {},
       },
    },
 }
-print(dump(rule_with_nested_rules))
 templar.print_rule(rule_with_nested_rules)
