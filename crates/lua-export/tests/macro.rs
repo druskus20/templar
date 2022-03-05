@@ -1,7 +1,8 @@
 #[macro_use]
 extern crate lua_export;
 
-#[lua_export_mod(path = "./crates/lua-export/tests/macro.lua")]
+//#[lua_export_mod(path = "./crates/lua-export/tests/macro.lua")]
+#[lua_export_mod]
 mod lua_export_test {
 
     #[lua_export]
@@ -18,7 +19,7 @@ mod lua_export_test {
     mod test {
         #[test]
         fn test_lua_export() {
-            dbg!(super::LUA_FUNCTIONS);
+            assert_eq!(super::LUA_FUNCTIONS.len(), 2);
             assert_eq!(super::foo(), "foo");
             assert_eq!(super::bar("woo".to_string()), "bar");
         }

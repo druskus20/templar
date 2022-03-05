@@ -1,14 +1,11 @@
 extern crate proc_macro;
 use core::panic;
-use std::io::Write;
 
 use proc_macro::TokenStream;
 use syn::__private::quote::quote;
 use syn::__private::ToTokens;
 use syn::parse_macro_input;
-use syn::AttributeArgs;
 use syn::ItemMod;
-use syn::{Lit, Meta, NestedMeta};
 
 // Does nothing, just removes the annotation
 #[proc_macro_attribute]
@@ -17,31 +14,32 @@ pub fn lua_export(_attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn lua_export_mod(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let attributes = parse_macro_input!(attr as AttributeArgs);
+pub fn lua_export_mod(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    /*let attributes = parse_macro_input!(attr as AttributeArgs);
     let path = attributes
-        .iter()
-        .find_map(|attr| {
-            let named_value = match attr {
-                NestedMeta::Meta(Meta::NameValue(v)) => v,
-                _ => return None,
-            };
-            // Check that the attribute is the "path" attribute
-            if !named_value.path.is_ident("path") {
-                return None;
-            }
-            // Get the string literal associated
-            match &named_value.lit {
-                Lit::Str(s) => Some(s.value()),
-                _ => None,
-            }
-        })
-        .unwrap_or_else(|| panic!("lua_export_mod: expected path attribute"));
+    .iter()
+    .find_map(|attr| {
+        let named_value = match attr {
+            NestedMeta::Meta(Meta::NameValue(v)) => v,
+            _ => return None,
+        };
+        // Check that the attribute is the "path" attribute
+        if !named_value.path.is_ident("path") {
+            return None;
+        }
+        // Get the string literal associated
+        match &named_value.lit {
+            Lit::Str(s) => Some(s.value()),
+            _ => None,
+        }
+    })
+    .unwrap_or_else(|| panic!("lua_export_mod: expected path attribute"));
+    */
 
     let item_cloned = item.clone();
     let mut mod_ast = parse_macro_input!(item_cloned as ItemMod);
 
-    let functions = if let Some((braces, items)) = &mod_ast.content {
+    let functions = if let Some((_, items)) = &mod_ast.content {
         items
             .iter()
             .filter_map(|item| {
@@ -85,7 +83,7 @@ pub fn lua_export_mod(attr: TokenStream, item: TokenStream) -> TokenStream {
         panic!("lua_export_mod: can't add function array to the module");
     };
 
-    dbg!(mod_ast.into_token_stream().into())
+    mod_ast.into_token_stream().into()
 }
 
 #[derive(Debug)]

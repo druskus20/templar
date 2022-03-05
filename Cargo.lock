@@ -230,6 +230,7 @@ dependencies = [
  "glob",
  "indoc",
  "lazy_static",
+ "lua-export",
  "nom",
  "rlua",
  "tempdir",

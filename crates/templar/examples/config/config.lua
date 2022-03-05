@@ -14,7 +14,7 @@ function dump(o)
 end
 
 print("Default rule ----\n")
-local default_rule = templar.create_default_rule()
+local default_rule = templar._create_default_rule()
 templar.print_rule(default_rule)
 
 print("\n\nRule from lua ----\n")
