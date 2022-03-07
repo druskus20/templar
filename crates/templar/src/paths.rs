@@ -1,14 +1,14 @@
 use anyhow::Result;
 use std::path::PathBuf;
 
-struct TemplarPaths {
+pub(super) struct TemplarPaths {
     template_dir: PathBuf,
     output_dir: PathBuf,
     config: PathBuf,
 }
 
 impl TemplarPaths {
-    fn try_from_env() -> Result<Self> {
+    pub(super) fn try_from_env() -> Result<Self> {
         let template_dir = match std::env::var("TEMPLAR_TEMPLATE_DIR") {
             Ok(path) => PathBuf::from(path),
             Err(_) => std::env::current_dir()?,

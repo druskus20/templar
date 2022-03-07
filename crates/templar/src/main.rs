@@ -11,6 +11,7 @@ mod templating;
 mod utils;
 
 fn main() {
+    let _templar_paths = paths::TemplarPaths::try_from_env().unwrap();
     let opt = opt::from_args();
 
     if let Some(command) = opt.command {

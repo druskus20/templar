@@ -1,10 +1,41 @@
 pub mod api;
-mod config;
+mod rule;
+
+use crate::hashmap;
 
 use anyhow::Result;
 use rlua::prelude::*;
-use std::{env, path::PathBuf};
+use std::{collections::HashMap, env, path::PathBuf};
 
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
+pub(super) struct Config {
+    rules: Vec<rule::Rule>,
+}
+
+impl<'lua> FromLua<'lua> for Config {
+    fn from_lua(lua_value: rlua::Value<'lua>, _: rlua::Context<'lua>) -> rlua::Result<Self> {
+        if let LuaValue::Table(lua_table) = lua_value {
+            Ok(Config {
+                rules: lua_table.get("rules")?,
+            })
+        } else {
+            Err(rlua::Error::external("Expected config to be a lua table"))
+        }
+    }
+}
+
+impl<'lua> ToLua<'lua> for Config {
+    fn to_lua(self, lua: rlua::Context<'lua>) -> rlua::Result<LuaValue<'lua>> {
+        let hashmap: HashMap<&str, LuaValue> = hashmap!(
+            "rule" => self.rules.to_lua(lua)?,
+        );
+        Ok(LuaValue::Table(LuaContext::create_table_from(
+            lua, hashmap,
+        )?))
+    }
+}
+
+// TODO:
 pub fn load_config(lua: &Lua, config_file: PathBuf) -> Result<()> {
     let config_filename = config_file
         .file_stem()

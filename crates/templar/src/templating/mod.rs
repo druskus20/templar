@@ -1,4 +1,4 @@
-mod directive;
+mod directives;
 mod parser;
 mod template;
 

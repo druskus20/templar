@@ -9,9 +9,9 @@
  * there's still a lot of work to do with edge cases
  */
 
-use super::directive;
-use super::directive::Generator;
-use super::template::DynGenerator;
+use super::directives;
+use super::directives::Directive;
+use super::directives::DynDirective;
 
 use nom::character::complete::{alphanumeric1, space0, space1};
 use nom::combinator::opt;
@@ -81,12 +81,12 @@ fn trim_keep_newline(s: &str) -> String {
 pub(super) fn parse_template_str<'a>(
     c: &'a ParserConfig,
     i: &'a str,
-) -> IResult<&'a str, Vec<DynGenerator>> {
+) -> IResult<&'a str, Vec<DynDirective>> {
     many0(alt((
         template_block(c),
         // Text
         map(is_not(c.odelim.as_str()), |t: &str| {
-            let boxed_text: DynGenerator = Rc::new(t.trim().to_string());
+            let boxed_text: DynDirective = Rc::new(t.trim().to_string());
             boxed_text
         }),
     )))(i)
@@ -95,7 +95,7 @@ pub(super) fn parse_template_str<'a>(
 /* Either text or some directive */
 fn template_block<'a>(
     c: &'a ParserConfig,
-) -> impl FnMut(&'a str) -> IResult<&'a str, DynGenerator> {
+) -> impl FnMut(&'a str) -> IResult<&'a str, DynDirective> {
     alt((
         include_block(c),
         if_block(c),
@@ -104,7 +104,7 @@ fn template_block<'a>(
         // NOTE: cdelim? odelim?
         // Text
         map(is_not(c.odelim.as_str()), |t: &str| {
-            let boxed_text: DynGenerator = Rc::new(trim_keep_newline(t));
+            let boxed_text: DynDirective = Rc::new(trim_keep_newline(t));
             boxed_text
         }),
     ))
@@ -113,7 +113,7 @@ fn template_block<'a>(
 /*
  * < include str >
  */
-fn include_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, DynGenerator> {
+fn include_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, DynDirective> {
     |i: &'a str| {
         let (i, (_, path)) = delimited(
             odelim(c),
@@ -121,7 +121,7 @@ fn include_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a 
             cdelim(c),
         )(i)?;
 
-        let include_block: Rc<dyn Generator> = Rc::new(directive::Include {
+        let include_block: Rc<dyn Directive> = Rc::new(directives::Include {
             path: path.trim().to_string(),
         });
 
@@ -165,7 +165,7 @@ where
  */
 fn transform_block<'a>(
     c: &'a ParserConfig,
-) -> impl FnMut(&'a str) -> IResult<&'a str, DynGenerator> {
+) -> impl FnMut(&'a str) -> IResult<&'a str, DynDirective> {
     |i| {
         let (i, input_name) = transform_line(c)(i)?;
         let (i, transform) = is_not(c.odelim.as_str())(i)?;
@@ -175,7 +175,7 @@ fn transform_block<'a>(
 
         Ok((
             i,
-            Rc::new(directive::Transform {
+            Rc::new(directives::Transform {
                 transform: trim_keep_newline(transform),
                 blocks,
                 input_name: input_name.to_string(),
@@ -203,7 +203,7 @@ fn transform_line<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a
  *   ...
  * < end >
  */
-fn if_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, DynGenerator> {
+fn if_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, DynDirective> {
     |i| {
         let (i, (condition, blocks, _)) = tuple((
             if_line(c),
@@ -213,7 +213,7 @@ fn if_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, 
 
         Ok((
             i,
-            Rc::new(directive::If {
+            Rc::new(directives::If {
                 condition: condition.to_string(),
                 blocks,
             }),
@@ -255,7 +255,7 @@ fn named_tag<'a>(
  *  ...
  * < end >
  */
-fn if_else_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, DynGenerator> {
+fn if_else_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, DynDirective> {
     |i| {
         // (&str, (&str, Vec<Rc<dyn templating::directive::Generator>>, &str))
         let (i, condition) = if_line(c)(i)?;
@@ -266,7 +266,7 @@ fn if_else_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a 
 
         Ok((
             i,
-            Rc::new(directive::IfElse {
+            Rc::new(directives::IfElse {
                 condition: condition.trim().to_string(),
                 if_blocks,
                 else_blocks,
@@ -299,14 +299,14 @@ mod tests {
 
     // Use Debug to compare the output for the purpose of testing. (since Eq / ParialEq are not
     // object-safe)
-    fn compare_vec_templateblocks(t1: Vec<DynGenerator>, t2: Vec<DynGenerator>) {
+    fn compare_vec_templateblocks(t1: Vec<DynDirective>, t2: Vec<DynDirective>) {
         assert_eq!(t1.len(), t2.len());
         for (i, j) in t1.iter().zip(t2.iter()) {
             compare_templateblocks(i, j);
         }
     }
 
-    fn compare_templateblocks(t1: &DynGenerator, t2: &DynGenerator) {
+    fn compare_templateblocks(t1: &DynDirective, t2: &DynDirective) {
         assert_eq!(format!("{:?}", t1), format!("{:?}", t2))
     }
 
@@ -347,24 +347,24 @@ mod tests {
             "#
         );
 
-        let expected: Vec<DynGenerator> = vec![
-            Rc::new(directive::Include {
+        let expected: Vec<DynDirective> = vec![
+            Rc::new(directives::Include {
                 path: "./test.html".to_string(),
             }),
             Rc::new("\n"),
-            Rc::new(directive::If {
+            Rc::new(directives::If {
                 condition: "true".to_string(),
                 blocks: vec![Rc::new("    Text inside an If\n")],
             }),
             Rc::new("\n\nSome Text In between\n\n\n"),
-            Rc::new(directive::IfElse {
+            Rc::new(directives::IfElse {
                 condition: "true".to_string(),
                 if_blocks: vec![
-                    Rc::new(directive::Include {
+                    Rc::new(directives::Include {
                         path: "./test.html".to_string(),
                     }),
                     Rc::new("\n"),
-                    Rc::new(directive::Transform {
+                    Rc::new(directives::Transform {
                         transform: "        lua\n".to_string(),
                         blocks: vec![Rc::new("        text\n")],
                         input_name: "i".to_string(),
@@ -372,7 +372,7 @@ mod tests {
                     Rc::new("\n    text ouside transform\n"),
                 ],
                 else_blocks: vec![
-                    Rc::new(directive::Include {
+                    Rc::new(directives::Include {
                         path: "./test.html".to_string(),
                     }),
                     Rc::new("\n    Some Text Inside\n"),
@@ -404,7 +404,7 @@ mod tests {
     #[test]
     fn test_parse_include_block() {
         let input = "!% include path %!";
-        let expected = directive::Include {
+        let expected = directives::Include {
             path: "path".to_string(),
         };
 
@@ -424,7 +424,7 @@ mod tests {
             "#
         );
 
-        let expected = directive::If {
+        let expected = directives::If {
             condition: "condition".to_string(),
             blocks: vec![Rc::new("    text\n    text\n")],
         };
@@ -463,7 +463,7 @@ mod tests {
             "#
         );
 
-        let expected = directive::IfElse {
+        let expected = directives::IfElse {
             condition: "condition".to_string(),
             if_blocks: vec![Rc::new("text\n")],
             else_blocks: vec![Rc::new("text\n")],
@@ -476,7 +476,7 @@ mod tests {
     #[test]
     fn test_include_block() {
         let input = "!% include ./some/path %!";
-        let expected = directive::Include {
+        let expected = directives::Include {
             path: "./some/path".to_string(),
         };
 
@@ -498,7 +498,7 @@ mod tests {
             "#
         );
 
-        let expected = directive::Transform {
+        let expected = directives::Transform {
             transform: "    luacode\n    luacode\n".to_string(),
             blocks: vec![Rc::new("    text\n    text\n")],
             input_name: "input".to_string(),

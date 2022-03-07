@@ -1,4 +1,4 @@
-use super::config::Rule;
+use super::rule::Rule;
 use anyhow::Result;
 use lua_export::*;
 use rlua;

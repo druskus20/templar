@@ -1,16 +1,14 @@
-use std::{fmt::Debug, path::PathBuf, rc::Rc};
+use std::{fmt::Debug, path::PathBuf};
 
-use super::directive::Generator;
+use super::directives::DynDirective;
 
 use super::parser::{self, ParserConfig};
 use anyhow::Result;
 
-pub(super) type DynGenerator = Rc<dyn Generator>;
-
 #[derive(Debug, Clone)]
 pub(crate) struct Template {
     //pub settings
-    blocks: Vec<DynGenerator>,
+    blocks: Vec<DynDirective>,
 }
 
 impl Template {

@@ -9,34 +9,6 @@ use std::{
 use crate::hashmap;
 
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
-pub(super) struct Config {
-    pub(super) rules: Vec<Rule>,
-}
-
-impl<'lua> FromLua<'lua> for Config {
-    fn from_lua(lua_value: rlua::Value<'lua>, _: rlua::Context<'lua>) -> rlua::Result<Self> {
-        if let LuaValue::Table(lua_table) = lua_value {
-            Ok(Config {
-                rules: lua_table.get("rules")?,
-            })
-        } else {
-            Err(rlua::Error::external("Expected config to be a lua table"))
-        }
-    }
-}
-
-impl<'lua> ToLua<'lua> for Config {
-    fn to_lua(self, lua: rlua::Context<'lua>) -> rlua::Result<LuaValue<'lua>> {
-        let hashmap: HashMap<&str, LuaValue> = hashmap!(
-            "rule" => self.rules.to_lua(lua)?,
-        );
-        Ok(LuaValue::Table(LuaContext::create_table_from(
-            lua, hashmap,
-        )?))
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub(super) struct Rule {
     id: String, // Unique identifier
     targets: Vec<PathBuf>,

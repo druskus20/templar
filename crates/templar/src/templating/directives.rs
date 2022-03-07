@@ -4,9 +4,11 @@ use anyhow::Result;
 use rlua::prelude::*;
 use std::fmt::Debug;
 
-use super::{parser::ParserConfig, template::DynGenerator};
+use super::parser::ParserConfig;
 
-pub(super) trait Generator: Debug {
+pub(super) type DynDirective = Rc<dyn Directive>;
+
+pub(super) trait Directive: Debug {
     /* Generates a String from a Directive. */
     fn generate(&self, _: &LuaContext) -> Result<String>;
 
@@ -27,13 +29,13 @@ pub(super) trait Generator: Debug {
 //    }
 //}
 
-impl Generator for String {
+impl Directive for String {
     fn generate(&self, _: &LuaContext) -> Result<String> {
         Ok(self.clone())
     }
 }
 
-impl Generator for &str {
+impl Directive for &str {
     fn generate(&self, _: &LuaContext) -> Result<String> {
         Ok(self.to_string())
     }
@@ -42,10 +44,10 @@ impl Generator for &str {
 #[derive(Debug, Clone)]
 pub(super) struct If {
     pub condition: String,
-    pub blocks: Vec<Rc<dyn Generator>>,
+    pub blocks: Vec<Rc<dyn Directive>>,
 }
 
-impl Generator for If {
+impl Directive for If {
     fn generate(&self, lua_context: &LuaContext) -> Result<String> {
         let condition_result = lua_context.load(&self.condition).eval::<bool>()?;
         if condition_result {
@@ -59,11 +61,11 @@ impl Generator for If {
 #[derive(Debug, Clone)]
 pub(super) struct IfElse {
     pub condition: String,
-    pub if_blocks: Vec<Rc<dyn Generator>>,
-    pub else_blocks: Vec<Rc<dyn Generator>>,
+    pub if_blocks: Vec<Rc<dyn Directive>>,
+    pub else_blocks: Vec<Rc<dyn Directive>>,
 }
 
-impl Generator for IfElse {
+impl Directive for IfElse {
     fn generate(&self, _: &LuaContext) -> Result<String> {
         todo!()
     }
@@ -74,7 +76,7 @@ pub(super) struct Include {
     pub path: String,
 }
 
-impl Generator for Include {
+impl Directive for Include {
     fn generate(&self, _: &LuaContext) -> Result<String> {
         todo!()
     }
@@ -84,10 +86,10 @@ impl Generator for Include {
 pub(super) struct Transform {
     pub input_name: String,
     pub transform: String,
-    pub blocks: Vec<Rc<dyn Generator>>,
+    pub blocks: Vec<Rc<dyn Directive>>,
 }
 
-impl Generator for Transform {
+impl Directive for Transform {
     fn generate(&self, lua_context: &LuaContext) -> Result<String> {
         let blocks = self.blocks.generate(lua_context)?;
         lua_context.globals().set(self.input_name.clone(), blocks)?;
@@ -97,7 +99,7 @@ impl Generator for Transform {
     }
 }
 
-impl Generator for Vec<DynGenerator> {
+impl Directive for Vec<DynDirective> {
     fn generate(&self, lua_context: &LuaContext) -> Result<String> {
         let mut result = String::new();
         for block in self {
