@@ -106,17 +106,17 @@ impl<'lua> ToLua<'lua> for Rule {
 
 fn calc_targets(path: String, basepath: String) -> Result<Vec<PathBuf>> {
     let home = std::env::var("HOME")?;
-    let path = path.replace("~", home.as_str());
+    let path = path.replace('~', home.as_str());
 
     // Concatenate basepath with path
     // TODO: Hacky
-    let basepath = if basepath.ends_with("/") || basepath.is_empty() {
+    let basepath = if basepath.ends_with('/') || basepath.is_empty() {
         basepath
     } else {
         format!("{}/", basepath)
     };
 
-    let path = basepath.clone() + &path;
+    let path = basepath + &path;
     let paths = glob(path.as_str())?;
 
     let mut targets = Vec::new();

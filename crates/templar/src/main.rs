@@ -1,11 +1,14 @@
 #![allow(dead_code)]
 #![feature(drain_filter)]
 
-use anyhow::Context;
+use std::{env::current_dir, path::PathBuf};
+
+use anyhow::{Context, Result};
 
 mod commands;
 mod config;
 mod opt;
+mod paths;
 mod templating;
 mod utils;
 

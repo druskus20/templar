@@ -8,22 +8,34 @@ use super::{parser::ParserConfig, template::DynGenerator};
 
 pub(super) trait Generator: Debug {
     /* Generates a String from a Directive. */
-    fn generate(&self, _: &LuaContext) -> Result<String> {
-        todo!()
-    }
+    fn generate(&self, _: &LuaContext) -> Result<String>;
 
-    fn display(&self, _: ParserConfig) -> Result<String> {
-        todo!()
+    // NOTE: Might be sensible to put this method in ParserConfig and possibly add another trait?
+    // idk lets keep it simple for now
+    fn _display(&self, _: ParserConfig) -> Result<String> {
+        unimplemented!()
     }
 }
 
 // Text
-impl<T> Generator for T
-where
-    T: AsRef<str> + Debug,
-{
+//impl<T> Generator for T
+//where
+//    T: AsRef<str> + Debug,
+//{
+//    fn generate(&self, _: &LuaContext) -> Result<String> {
+//        Ok(self.as_ref().to_string())
+//    }
+//}
+
+impl Generator for String {
     fn generate(&self, _: &LuaContext) -> Result<String> {
-        Ok(self.as_ref().to_string())
+        Ok(self.clone())
+    }
+}
+
+impl Generator for &str {
+    fn generate(&self, _: &LuaContext) -> Result<String> {
+        Ok(self.to_string())
     }
 }
 
@@ -37,7 +49,7 @@ impl Generator for If {
     fn generate(&self, lua_context: &LuaContext) -> Result<String> {
         let condition_result = lua_context.load(&self.condition).eval::<bool>()?;
         if condition_result {
-            generate_from_blocks(&self.blocks, lua_context)
+            self.blocks.generate(lua_context)
         } else {
             Ok("".to_string())
         }
@@ -51,14 +63,22 @@ pub(super) struct IfElse {
     pub else_blocks: Vec<Rc<dyn Generator>>,
 }
 
-impl Generator for IfElse {}
+impl Generator for IfElse {
+    fn generate(&self, _: &LuaContext) -> Result<String> {
+        todo!()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub(super) struct Include {
     pub path: String,
 }
 
-impl Generator for Include {}
+impl Generator for Include {
+    fn generate(&self, _: &LuaContext) -> Result<String> {
+        todo!()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub(super) struct Transform {
@@ -69,7 +89,7 @@ pub(super) struct Transform {
 
 impl Generator for Transform {
     fn generate(&self, lua_context: &LuaContext) -> Result<String> {
-        let blocks = generate_from_blocks(&self.blocks, lua_context)?;
+        let blocks = self.blocks.generate(lua_context)?;
         lua_context.globals().set(self.input_name.clone(), blocks)?;
         let r = lua_context.load(&self.transform).eval::<String>()?;
         lua_context.globals().set(self.input_name.clone(), LuaNil)?;
@@ -77,14 +97,12 @@ impl Generator for Transform {
     }
 }
 
-// TODO: Just implement Generator for Vec<DynGenerator>
-fn generate_from_blocks(
-    blocks: &Vec<DynGenerator>,
-    lua_context: &LuaContext,
-) -> Result<String, anyhow::Error> {
-    let mut result = String::new();
-    for block in blocks {
-        result.push_str(&block.generate(lua_context)?);
+impl Generator for Vec<DynGenerator> {
+    fn generate(&self, lua_context: &LuaContext) -> Result<String> {
+        let mut result = String::new();
+        for block in self {
+            result.push_str(&block.generate(lua_context)?);
+        }
+        Ok(result.to_string())
     }
-    Ok(result.to_string())
 }

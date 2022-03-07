@@ -83,7 +83,7 @@ pub(super) fn parse_template_str<'a>(
     i: &'a str,
 ) -> IResult<&'a str, Vec<DynGenerator>> {
     many0(alt((
-        template_block(&c),
+        template_block(c),
         // Text
         map(is_not(c.odelim.as_str()), |t: &str| {
             let boxed_text: DynGenerator = Rc::new(t.trim().to_string());

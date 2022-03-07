@@ -20,7 +20,7 @@ impl Template {
     }
 
     pub(crate) fn parse_str(config: &ParserConfig, template_str: &str) -> Result<Self> {
-        match parser::parse_template_str(&config, &template_str) {
+        match parser::parse_template_str(config, template_str) {
             Ok((_, blocks)) => Ok(Template { blocks }),
             Err(e) => anyhow::bail!("{}", e), // Rethrow the error (lifetimes stuff)
         }
@@ -29,7 +29,6 @@ impl Template {
     pub(crate) fn process(&self) -> Result<String> {
         let mut output = String::new();
         rlua::Lua::new().context(|lua_context| -> Result<()> {
-            // TODO: Use trait Generator for this
             for block in &self.blocks {
                 let block_output = block.generate(&lua_context)?;
                 output.push_str(block_output.as_str());
