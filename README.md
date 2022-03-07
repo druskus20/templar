@@ -16,6 +16,8 @@ This project is not released yet
 ## WIP 
 - [x] Basic Lua integration for configuration / Scripting
 - [x] Basic templating 
+- [x] Command line arguments
+- [x] Generate lua module with wrapper functions (#[export_lua])
 - [ ] Rule specificity for targets
 - [ ] File generation
 - [ ] Parallel scheduling of rules
