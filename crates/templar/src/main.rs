@@ -1,9 +1,7 @@
 #![allow(dead_code)]
 #![feature(drain_filter)]
 
-use std::{env::current_dir, path::PathBuf};
-
-use anyhow::{Context, Result};
+use anyhow::Context;
 
 mod commands;
 mod config;

@@ -4,3 +4,7 @@
 pub mod config;
 pub mod templating;
 pub mod utils;
+
+mod commands;
+mod opt;
+mod paths;
