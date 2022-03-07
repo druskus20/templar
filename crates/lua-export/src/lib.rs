@@ -68,8 +68,8 @@ fn gen_create_lua_wrapper(function_signs: &[FunctionSignature]) -> Result<ItemFn
                 .args
                 .iter()
                 .map(|arg| arg.to_string())
-                .reduce(|acc, arg| acc + &arg + ", ")
-                .unwrap_or_else(|| String::from(""));
+                .collect::<Vec<_>>()
+                .join(", ");
 
             let lua_function_str = format!(
                 "function M.{}({})\n    return {}({})\nend\n\n",
@@ -115,7 +115,6 @@ fn gen_register_lua_api(function_signs: &[FunctionSignature]) -> Result<ItemFn, 
 
     syn::parse2(quote!(
         pub fn register_lua_api(lua: &rlua::prelude::Lua) -> std::result::Result<(), rlua::prelude::LuaError> {
-        //    use rlua::ExternalError;
         use rlua::ExternalResult;
             lua.context(|lua_context| {
                 let globals =  lua_context.globals();
