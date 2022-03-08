@@ -1,0 +1,26 @@
+name: Cargo Build
+
+on:
+   push:
+      branches: [master]
+   pull_request:
+      branches: [master]
+
+env:
+   CARGO_TERM_COLOR: always
+
+jobs:
+   build:
+      runs-on: ubuntu-latest
+      steps:
+         - name: Set up
+           uses: actions-rs/toolchain@v1
+           with:
+              toolchain: nightly
+              override: true
+              components: rustfmt
+         - uses: actions/checkout@v2
+         - uses: Swatinem/rust-cache@v1
+         - name: Build x11
+           run: cargo check 
+         
