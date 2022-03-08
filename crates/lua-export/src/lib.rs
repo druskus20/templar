@@ -105,10 +105,8 @@ fn gen_register_lua_api(function_signs: &[FunctionSignature]) -> Result<ItemFn, 
             let function_name_str = &sign.name.to_string();
             let function_name = &sign.name;
             let args = &sign.args;
-            // let function = lualcontext.create_function(|args...| function_ident(args...).to_lua_err())?;
             quote!(
-                let function = lua_context.create_function(|_, (#(#args),*)| #function_name(#(#args),*).to_lua_err())?;
-                globals.set(#function_name_str, function)?;
+                globals.set(#function_name_str, lua_context.create_function(|_, (#(#args),*)| #function_name(#(#args),*).to_lua_err())?)?;
             )
         })
         .collect::<Vec<_>>();
