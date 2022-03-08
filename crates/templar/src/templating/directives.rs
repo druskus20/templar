@@ -66,8 +66,13 @@ pub(super) struct IfElse {
 }
 
 impl Directive for IfElse {
-    fn generate(&self, _: &LuaContext) -> Result<String> {
-        todo!()
+    fn generate(&self, lua_context: &LuaContext) -> Result<String> {
+        let condition_result = lua_context.load(&self.condition).eval::<bool>()?;
+        if condition_result {
+            self.if_blocks.generate(lua_context)
+        } else {
+            self.else_blocks.generate(lua_context)
+        }
     }
 }
 
