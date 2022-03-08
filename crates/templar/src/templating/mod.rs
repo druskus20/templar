@@ -15,12 +15,12 @@ pub(crate) struct Template {
 }
 
 impl Template {
-    pub(crate) fn parse_path(config: &ParserConfig, template_path: PathBuf) -> Result<Self> {
+    pub(crate) fn load_from_path(config: &ParserConfig, template_path: PathBuf) -> Result<Self> {
         let file_contents = std::fs::read_to_string(template_path)?;
-        Self::parse_str(config, &file_contents)
+        Self::from_str(config, &file_contents)
     }
 
-    pub(crate) fn parse_str(config: &ParserConfig, template_str: &str) -> Result<Self> {
+    pub(crate) fn from_str(config: &ParserConfig, template_str: &str) -> Result<Self> {
         match parser::parse_template_str(config, template_str) {
             Ok((_, blocks)) => Ok(Template {
                 parser_config: config.clone(),
@@ -75,7 +75,7 @@ mod tests {
             "#
         );
 
-        let t = Template::parse_str(&config, template_str).unwrap();
+        let t = Template::from_str(&config, template_str).unwrap();
         let _ = t.process().unwrap();
         //println!("{}", r);
 
@@ -92,7 +92,7 @@ mod tests {
             "#
         );
 
-        let t = Template::parse_str(&config, template_str).unwrap();
+        let t = Template::from_str(&config, template_str).unwrap();
         let _ = t.process().unwrap();
     }
 }
