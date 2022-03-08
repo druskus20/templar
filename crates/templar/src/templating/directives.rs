@@ -86,7 +86,7 @@ pub(super) struct Include {
 impl Directive for Include {
     fn generate(&self, parser_config: &ParserConfig, _lua_context: &LuaContext) -> Result<String> {
         let included_str =
-            super::template::Template::parse_path(parser_config, (&self.path).into())?.process()?;
+            super::Template::parse_path(parser_config, (&self.path).into())?.process()?;
         Ok(included_str)
     }
 }
