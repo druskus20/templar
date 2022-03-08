@@ -16,7 +16,7 @@ mod lua_export_test {
     }
 
     #[cfg(test)]
-    mod test {
+    mod tests {
         use super::{gen_lua_wrapper, register_lua_api};
 
         #[test]

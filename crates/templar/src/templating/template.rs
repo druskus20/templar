@@ -9,6 +9,7 @@ use anyhow::Result;
 pub(crate) struct Template {
     //pub settings
     blocks: Vec<DynDirective>,
+    parser_config: ParserConfig,
 }
 
 impl Template {
@@ -19,7 +20,10 @@ impl Template {
 
     pub(crate) fn parse_str(config: &ParserConfig, template_str: &str) -> Result<Self> {
         match parser::parse_template_str(config, template_str) {
-            Ok((_, blocks)) => Ok(Template { blocks }),
+            Ok((_, blocks)) => Ok(Template {
+                parser_config: config.clone(),
+                blocks,
+            }),
             Err(e) => anyhow::bail!("{}", e), // Rethrow the error (lifetimes stuff)
         }
     }
@@ -28,7 +32,7 @@ impl Template {
         let mut output = String::new();
         rlua::Lua::new().context(|lua_context| -> Result<()> {
             for block in &self.blocks {
-                let block_output = block.generate(&lua_context)?;
+                let block_output = block.generate(&self.parser_config, &lua_context)?;
                 output.push_str(block_output.as_str());
             }
             Ok(())

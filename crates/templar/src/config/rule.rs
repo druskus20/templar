@@ -119,7 +119,7 @@ fn expand_dir_rec(dir: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::fs::create_dir;
     use std::fs::File;
     use std::path::PathBuf;

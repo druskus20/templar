@@ -99,7 +99,7 @@ fn template_block<'a>(
     alt((
         include_block(c),
         if_block(c),
-        if_else_block(c),
+        ifelse_block(c),
         transform_block(c),
         // NOTE: cdelim? odelim?
         // Text
@@ -184,7 +184,7 @@ fn transform_block<'a>(
     }
 }
 
-/* < transform input_name output_name > */
+/* < transform input_name > */
 fn transform_line<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
     |i| {
         let (i, (_, _, input_name)) = delimited(
@@ -255,7 +255,7 @@ fn named_tag<'a>(
  *  ...
  * < end >
  */
-fn if_else_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, DynDirective> {
+fn ifelse_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, DynDirective> {
     |i| {
         // (&str, (&str, Vec<Rc<dyn templating::directive::Generator>>, &str))
         let (i, condition) = if_line(c)(i)?;
@@ -452,7 +452,7 @@ mod tests {
     }
 
     #[test]
-    fn test_if_else_block() {
+    fn test_ifelse_block() {
         let input = indoc!(
             r#"
                 !% if condition %!
@@ -469,7 +469,7 @@ mod tests {
             else_blocks: vec![Rc::new("text\n")],
         };
 
-        let result = if_else_block(&PARSER_CONFIG)(input).unwrap().1;
+        let result = ifelse_block(&PARSER_CONFIG)(input).unwrap().1;
         assert_eq!(format!("{:?}", result), format!("{:?}", expected));
     }
 
