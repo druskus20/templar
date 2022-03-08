@@ -4,7 +4,7 @@ A lua based template system to generate config files
 </p>
 
 ## Note
-This project is not released yet
+This project is not released yet, check out [the tracking issue](https://github.com/druskus20/templar/issues/1#issue-1162078516).
 
 ## Features
 - Similar to Jinja
@@ -12,14 +12,3 @@ This project is not released yet
 - Completely configurable syntax on a template by template basis
 - No configuration overhead, `templar generate` is enough 
 - Fast and multithread
-
-## WIP 
-- [x] Basic Lua integration for configuration / Scripting
-- [x] Basic templating 
-- [x] Command line arguments
-- [x] Generate lua module with wrapper functions (#[export_lua])
-- [ ] Rule specificity for targets
-- [ ] File generation
-- [ ] Parallel scheduling of rules
-- [ ] Document Lua API and templating syntax
-- [ ] Homepage
