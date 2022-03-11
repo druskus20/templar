@@ -14,7 +14,7 @@ pub(crate) struct TemplateEngine {
 impl TemplateEngine {
     pub(crate) fn process(&self, template_path: PathBuf, output_path: PathBuf) -> Result<()> {
         let template = Template::load_from_path(&self.config, template_path)?;
-        let output = template.process(&self.config)?;
+        let output = template.process()?;
         std::fs::File::create(output_path)?.write_all(output.as_bytes())?;
         Ok(())
     }
@@ -46,11 +46,11 @@ impl Template {
         }
     }
 
-    fn process(&self, config: &ParserConfig) -> Result<String> {
+    fn process(&self) -> Result<String> {
         let mut output = String::new();
         rlua::Lua::new().context(|lua_context| -> Result<()> {
             for block in &self.blocks {
-                let block_output = block.generate(config, &lua_context)?;
+                let block_output = block.generate(&lua_context)?;
                 output.push_str(block_output.as_str());
             }
             Ok(())
@@ -92,7 +92,7 @@ mod tests {
         );
 
         let t = Template::from_str(&config, template_str).unwrap();
-        let _ = t.process(&config).unwrap();
+        let _ = t.process().unwrap();
         //println!("{}", r);
 
         let template_str = indoc!(
@@ -109,6 +109,6 @@ mod tests {
         );
 
         let t = Template::from_str(&config, template_str).unwrap();
-        let _ = t.process(&config).unwrap();
+        let _ = t.process().unwrap();
     }
 }

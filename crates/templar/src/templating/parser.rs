@@ -123,6 +123,7 @@ fn include_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a 
 
         let include_block: Rc<dyn Directive> = Rc::new(directives::Include {
             path: path.trim().to_string(),
+            parser_config: c.clone(),
         });
 
         Ok((i, include_block))
@@ -350,6 +351,7 @@ mod tests {
         let expected: Vec<DynDirective> = vec![
             Rc::new(directives::Include {
                 path: "./test.html".to_string(),
+                parser_config: PARSER_CONFIG.clone(),
             }),
             Rc::new("\n"),
             Rc::new(directives::If {
@@ -362,6 +364,7 @@ mod tests {
                 if_blocks: vec![
                     Rc::new(directives::Include {
                         path: "./test.html".to_string(),
+                        parser_config: PARSER_CONFIG.clone(),
                     }),
                     Rc::new("\n"),
                     Rc::new(directives::Transform {
@@ -374,6 +377,7 @@ mod tests {
                 else_blocks: vec![
                     Rc::new(directives::Include {
                         path: "./test.html".to_string(),
+                        parser_config: PARSER_CONFIG.clone(),
                     }),
                     Rc::new("\n    Some Text Inside\n"),
                 ],
@@ -406,6 +410,7 @@ mod tests {
         let input = "!% include path %!";
         let expected = directives::Include {
             path: "path".to_string(),
+            parser_config: PARSER_CONFIG.clone(),
         };
 
         let result = include_block(&PARSER_CONFIG)(input).unwrap().1;
@@ -478,6 +483,7 @@ mod tests {
         let input = "!% include ./some/path %!";
         let expected = directives::Include {
             path: "./some/path".to_string(),
+            parser_config: PARSER_CONFIG.clone(),
         };
 
         let result = include_block(&PARSER_CONFIG)(input).unwrap().1;

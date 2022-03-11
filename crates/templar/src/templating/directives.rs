@@ -12,7 +12,7 @@ pub(super) trait Directive: Debug {
     /* Generates a String from a Directive. */
     // NOTE: Possibly store ParserConfig inside Include and pass it from the parser?
     // NOTE: Possibly lua_context might be handled differently once I figure out how to to scopes
-    fn generate(&self, parser_config: &ParserConfig, lua_context: &LuaContext) -> Result<String>;
+    fn generate(&self, lua_context: &LuaContext) -> Result<String>;
 
     // NOTE: Might be sensible to put this method in ParserConfig and possibly add another trait?
     // idk lets keep it simple for now
@@ -32,13 +32,13 @@ pub(super) trait Directive: Debug {
 //}
 
 impl Directive for String {
-    fn generate(&self, _: &ParserConfig, _: &LuaContext) -> Result<String> {
+    fn generate(&self, _: &LuaContext) -> Result<String> {
         Ok(self.clone())
     }
 }
 
 impl Directive for &str {
-    fn generate(&self, _: &ParserConfig, _: &LuaContext) -> Result<String> {
+    fn generate(&self, _: &LuaContext) -> Result<String> {
         Ok(self.to_string())
     }
 }
@@ -50,10 +50,10 @@ pub(super) struct If {
 }
 
 impl Directive for If {
-    fn generate(&self, parser_config: &ParserConfig, lua_context: &LuaContext) -> Result<String> {
+    fn generate(&self, lua_context: &LuaContext) -> Result<String> {
         let condition_result = lua_context.load(&self.condition).eval::<bool>()?;
         if condition_result {
-            self.blocks.generate(parser_config, lua_context)
+            self.blocks.generate(lua_context)
         } else {
             Ok("".to_string())
         }
@@ -68,12 +68,12 @@ pub(super) struct IfElse {
 }
 
 impl Directive for IfElse {
-    fn generate(&self, parser_config: &ParserConfig, lua_context: &LuaContext) -> Result<String> {
+    fn generate(&self, lua_context: &LuaContext) -> Result<String> {
         let condition_result = lua_context.load(&self.condition).eval::<bool>()?;
         if condition_result {
-            self.if_blocks.generate(parser_config, lua_context)
+            self.if_blocks.generate(lua_context)
         } else {
-            self.else_blocks.generate(parser_config, lua_context)
+            self.else_blocks.generate(lua_context)
         }
     }
 }
@@ -81,12 +81,13 @@ impl Directive for IfElse {
 #[derive(Debug, Clone)]
 pub(super) struct Include {
     pub path: String,
+    pub parser_config: ParserConfig, // TODO: Possibly use a reference
 }
 
 impl Directive for Include {
-    fn generate(&self, parser_config: &ParserConfig, _lua_context: &LuaContext) -> Result<String> {
-        let str = super::Template::load_from_path(parser_config, (&self.path).into())?
-            .process(&parser_config)?;
+    fn generate(&self, _lua_context: &LuaContext) -> Result<String> {
+        let str =
+            super::Template::load_from_path(&self.parser_config, (&self.path).into())?.process()?;
         Ok(str)
     }
 }
@@ -99,8 +100,8 @@ pub(super) struct Transform {
 }
 
 impl Directive for Transform {
-    fn generate(&self, parser_config: &ParserConfig, lua_context: &LuaContext) -> Result<String> {
-        let blocks = self.blocks.generate(parser_config, lua_context)?;
+    fn generate(&self, lua_context: &LuaContext) -> Result<String> {
+        let blocks = self.blocks.generate(lua_context)?;
         lua_context.globals().set(self.input_name.clone(), blocks)?;
         let r = lua_context.load(&self.transform).eval::<String>()?;
         lua_context.globals().set(self.input_name.clone(), LuaNil)?;
@@ -109,10 +110,10 @@ impl Directive for Transform {
 }
 
 impl Directive for Vec<DynDirective> {
-    fn generate(&self, parser_config: &ParserConfig, lua_context: &LuaContext) -> Result<String> {
+    fn generate(&self, lua_context: &LuaContext) -> Result<String> {
         let mut result = String::new();
         for block in self {
-            result.push_str(&block.generate(parser_config, lua_context)?);
+            result.push_str(&block.generate(lua_context)?);
         }
         Ok(result.to_string())
     }
@@ -130,10 +131,9 @@ mod tests {
 
     #[test]
     fn test_directive_str() {
-        let parser_config = &PARSER_CONFIG;
         let directive = "some text";
         Lua::new().context(|lua_context| {
-            let result = directive.generate(parser_config, &lua_context).unwrap();
+            let result = directive.generate(&lua_context).unwrap();
             let expected = "some text".to_string();
             assert_eq!(result, expected);
         });
@@ -141,10 +141,9 @@ mod tests {
 
     #[test]
     fn test_directive_string() {
-        let parser_config = &PARSER_CONFIG;
         let directive = "some text".to_string();
         Lua::new().context(|lua_context| {
-            let result = directive.generate(parser_config, &lua_context).unwrap();
+            let result = directive.generate(&lua_context).unwrap();
             let expected = "some text".to_string();
             assert_eq!(result, expected);
         });
@@ -152,7 +151,6 @@ mod tests {
 
     #[test]
     fn test_directive_if() {
-        let parser_config = &PARSER_CONFIG;
         let directive_true = If {
             condition: "true".to_string(),
             blocks: vec![Rc::new("some text".to_string())],
@@ -162,14 +160,10 @@ mod tests {
             blocks: vec![Rc::new("some text".to_string())],
         };
         Lua::new().context(|lua_context| {
-            let result = directive_true
-                .generate(parser_config, &lua_context)
-                .unwrap();
+            let result = directive_true.generate(&lua_context).unwrap();
             let expected = "some text".to_string();
             assert_eq!(result, expected);
-            let result = directive_false
-                .generate(parser_config, &lua_context)
-                .unwrap();
+            let result = directive_false.generate(&lua_context).unwrap();
             let expected = "".to_string();
             assert_eq!(result, expected);
         });
@@ -177,7 +171,6 @@ mod tests {
 
     #[test]
     fn test_directive_ifelse() {
-        let parser_config = &PARSER_CONFIG;
         let directive_true = IfElse {
             condition: "true".to_string(),
             if_blocks: vec![Rc::new("some text".to_string())],
@@ -189,14 +182,10 @@ mod tests {
             else_blocks: vec![Rc::new("some more text".to_string())],
         };
         Lua::new().context(|lua_context| {
-            let result = directive_true
-                .generate(parser_config, &lua_context)
-                .unwrap();
+            let result = directive_true.generate(&lua_context).unwrap();
             let expected = "some text".to_string();
             assert_eq!(result, expected);
-            let result = directive_false
-                .generate(parser_config, &lua_context)
-                .unwrap();
+            let result = directive_false.generate(&lua_context).unwrap();
             let expected = "some more text".to_string();
             assert_eq!(result, expected);
         });
@@ -215,12 +204,13 @@ mod tests {
         let mut file = std::fs::File::create(&path).unwrap();
         file.write(file_contents.as_bytes()).unwrap();
 
-        let parser_config = &PARSER_CONFIG;
+        let parser_config: &ParserConfig = &PARSER_CONFIG;
         let directive = Include {
             path: path.to_string_lossy().to_string(),
+            parser_config: parser_config.clone(),
         };
         Lua::new().context(|lua_context| {
-            let result = directive.generate(parser_config, &lua_context).unwrap();
+            let result = directive.generate(&lua_context).unwrap();
             let expected = "some text\n".to_string();
             assert_eq!(result, expected);
         });
@@ -228,14 +218,13 @@ mod tests {
 
     #[test]
     fn test_directive_transform() {
-        let parser_config = &PARSER_CONFIG;
         let directive = Transform {
             input_name: "input".to_string(),
             transform: "input:gsub(\"RED\", \"#FF0000\")".to_string(),
             blocks: vec![Rc::new("some text in RED".to_string())],
         };
         Lua::new().context(|lua_context| {
-            let result = directive.generate(parser_config, &lua_context).unwrap();
+            let result = directive.generate(&lua_context).unwrap();
             let expected = "some text in #FF0000".to_string();
             assert_eq!(result, expected);
         });
