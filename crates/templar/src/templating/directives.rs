@@ -46,7 +46,7 @@ impl Directive for &str {
 #[derive(Debug, Clone)]
 pub(super) struct If {
     pub condition: String,
-    pub blocks: Vec<Rc<dyn Directive>>,
+    pub blocks: Vec<DynDirective>,
 }
 
 impl Directive for If {
@@ -63,8 +63,8 @@ impl Directive for If {
 #[derive(Debug, Clone)]
 pub(super) struct IfElse {
     pub condition: String,
-    pub if_blocks: Vec<Rc<dyn Directive>>,
-    pub else_blocks: Vec<Rc<dyn Directive>>,
+    pub if_blocks: Vec<DynDirective>,
+    pub else_blocks: Vec<DynDirective>,
 }
 
 impl Directive for IfElse {
@@ -85,9 +85,9 @@ pub(super) struct Include {
 
 impl Directive for Include {
     fn generate(&self, parser_config: &ParserConfig, _lua_context: &LuaContext) -> Result<String> {
-        let included_str =
-            super::Template::load_from_path(parser_config, (&self.path).into())?.process()?;
-        Ok(included_str)
+        let str = super::Template::load_from_path(parser_config, (&self.path).into())?
+            .process(&parser_config)?;
+        Ok(str)
     }
 }
 
@@ -95,7 +95,7 @@ impl Directive for Include {
 pub(super) struct Transform {
     pub input_name: String,
     pub transform: String,
-    pub blocks: Vec<Rc<dyn Directive>>,
+    pub blocks: Vec<DynDirective>,
 }
 
 impl Directive for Transform {
