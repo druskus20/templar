@@ -1,5 +1,6 @@
 <h1 align="center">Templar</h1>
 <p align="center">
+  <i>Config your configs!</i></br>
 A Lua based template system to generate config files 
 </p>
 
