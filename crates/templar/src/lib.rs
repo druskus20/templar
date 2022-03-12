@@ -2,8 +2,9 @@
 #![feature(drain_filter)]
 
 pub mod config;
-pub mod templating;
-pub mod utils;
+pub mod engine;
+pub mod template;
+mod utils;
 
 mod commands;
 mod opt;

@@ -3,8 +3,8 @@ use anyhow::Result;
 use lua_export::*;
 use rlua;
 
-pub use lua_functions::gen_lua_wrapper;
-pub use lua_functions::register_lua_api;
+// Exports functions defined in the macro
+pub use lua_functions::*;
 
 #[lua_export_mod]
 pub(super) mod lua_functions {

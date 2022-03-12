@@ -9,11 +9,17 @@ use std::{
 use crate::hashmap;
 
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
-pub(super) struct Rule {
-    id: String, // Unique identifier
-    targets: Vec<PathBuf>,
-    rules: Vec<Rule>,
-    basepath: PathBuf,
+pub(crate) struct Rule {
+    pub id: String, // Unique identifier
+    pub targets: Vec<PathBuf>,
+    pub rules: Vec<Rule>,
+    pub basepath: PathBuf,
+
+    /// TODO: Maybe compute the targets from engine::Engine::run(), instead of
+    /// pre-computing them when parsing the config?
+    /// We're going to have to recurse through the rules to figure out which options
+    /// to apply anyway so...
+    ///
     /// This should not be used, its only for implementing ToLua
     raw_targets: String,
 }

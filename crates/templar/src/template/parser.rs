@@ -31,15 +31,15 @@ use nom::{
 
 #[derive(Debug, Clone)]
 pub(crate) struct ParserConfig {
-    pub(crate) odelim: String,
-    pub(crate) cdelim: String,
-    pub(crate) comment: String,
-    pub(crate) if_: String,
-    pub(crate) else_: String,
-    pub(crate) end: String,
-    pub(crate) include: String,
-    pub(crate) transform: String,
-    pub(crate) to: String,
+    pub odelim: String,
+    pub cdelim: String,
+    pub comment: String,
+    pub if_: String,
+    pub else_: String,
+    pub end: String,
+    pub include: String,
+    pub transform: String,
+    pub to: String,
 }
 
 impl Default for ParserConfig {

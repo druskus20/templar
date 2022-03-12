@@ -1,10 +1,10 @@
-use std::rc::Rc;
+use std::{path::PathBuf, rc::Rc};
 
 use anyhow::Result;
 use rlua::prelude::*;
 use std::fmt::Debug;
 
-use super::parser::ParserConfig;
+use super::{parser::ParserConfig, Template};
 
 pub(super) type DynDirective = Rc<dyn Directive>;
 
@@ -86,8 +86,8 @@ pub(super) struct Include {
 
 impl Directive for Include {
     fn generate(&self, _lua_context: &LuaContext) -> Result<String> {
-        let str =
-            super::Template::load_from_path(&self.parser_config, (&self.path).into())?.process()?;
+        let str = Template::load_from_path(&self.parser_config, PathBuf::from(self.path.clone()))?
+            .process()?;
         Ok(str)
     }
 }

@@ -1,5 +1,5 @@
-pub mod api;
-mod rule;
+pub mod api; // TODO: Make this pub(super) once examples/ is not required
+pub(super) mod rule;
 
 use crate::hashmap;
 
@@ -8,14 +8,14 @@ use rlua::prelude::*;
 use std::{collections::HashMap, env, path::PathBuf};
 
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
-pub(super) struct Config {
-    rules: Vec<rule::Rule>,
+pub(super) struct TemplarConfig {
+    pub rules: Vec<rule::Rule>,
 }
 
-impl<'lua> FromLua<'lua> for Config {
+impl<'lua> FromLua<'lua> for TemplarConfig {
     fn from_lua(lua_value: rlua::Value<'lua>, _: rlua::Context<'lua>) -> rlua::Result<Self> {
         if let LuaValue::Table(lua_table) = lua_value {
-            Ok(Config {
+            Ok(TemplarConfig {
                 rules: lua_table.get("rules")?,
             })
         } else {
@@ -24,7 +24,7 @@ impl<'lua> FromLua<'lua> for Config {
     }
 }
 
-impl<'lua> ToLua<'lua> for Config {
+impl<'lua> ToLua<'lua> for TemplarConfig {
     fn to_lua(self, lua: rlua::Context<'lua>) -> rlua::Result<LuaValue<'lua>> {
         let hashmap: HashMap<&str, LuaValue> = hashmap!(
             "rule" => self.rules.to_lua(lua)?,

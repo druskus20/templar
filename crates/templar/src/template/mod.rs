@@ -1,24 +1,12 @@
 mod directives;
-mod parser;
+pub(super) mod parser; // TODO: change this and separate ParserConfig into a separate mod
 
-use std::{fmt::Debug, io::Write, path::PathBuf};
+use std::fmt::Debug;
+use std::path::Path;
 
 use anyhow::Result;
 use directives::DynDirective;
 use parser::ParserConfig;
-
-pub(crate) struct TemplateEngine {
-    pub(crate) config: ParserConfig,
-}
-
-impl TemplateEngine {
-    pub(crate) fn process(&self, template_path: PathBuf, output_path: PathBuf) -> Result<()> {
-        let template = Template::load_from_path(&self.config, template_path)?;
-        let output = template.process()?;
-        std::fs::File::create(output_path)?.write_all(output.as_bytes())?;
-        Ok(())
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct Template {
@@ -29,7 +17,10 @@ pub struct Template {
 }
 
 impl Template {
-    fn load_from_path(config: &ParserConfig, template_path: PathBuf) -> Result<Self> {
+    pub(super) fn load_from_path(
+        config: &ParserConfig,
+        template_path: impl AsRef<Path>,
+    ) -> Result<Self> {
         let file_contents = std::fs::read_to_string(template_path)?;
         Self::from_str(config, &file_contents)
     }
@@ -46,7 +37,7 @@ impl Template {
         }
     }
 
-    fn process(&self) -> Result<String> {
+    pub(super) fn process(&self) -> Result<String> {
         let mut output = String::new();
         rlua::Lua::new().context(|lua_context| -> Result<()> {
             for block in &self.blocks {
@@ -61,13 +52,13 @@ impl Template {
 
 #[cfg(test)]
 mod tests {
-    use super::parser;
+    use super::parser::ParserConfig;
     use super::Template;
     use indoc::indoc;
 
     #[test]
     fn test_templar() {
-        let config = parser::ParserConfig {
+        let config = ParserConfig {
             include: "include".to_string(),
             transform: "transform".to_string(),
             to: "to".to_string(),
