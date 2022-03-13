@@ -4,7 +4,7 @@ use anyhow::Result;
 use rlua::prelude::*;
 use std::fmt::Debug;
 
-use super::{parser::ParserConfig, template::Template};
+use super::parser::ParserConfig;
 
 pub(super) type DynDirective = Rc<dyn Directive>;
 
@@ -92,9 +92,11 @@ pub(super) struct Include {
 
 impl Directive for Include {
     fn generate(&self, _lua_context: &LuaContext) -> Result<String> {
-        let str = Template::load_from_path(&self.parser_config, PathBuf::from(self.path.clone()))?
-            .process()?;
-        Ok(str)
+        // TODO: Paths are handled by the conductor. Including directly from here is hacky
+        let engine = super::Trebuchet::new(self.parser_config.clone());
+        let path = PathBuf::from(self.path.clone());
+        let template_str = std::fs::read_to_string(path.as_path())?;
+        engine.process_template_str(template_str.as_str())
     }
 }
 

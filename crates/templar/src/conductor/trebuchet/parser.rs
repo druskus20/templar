@@ -58,6 +58,37 @@ impl Default for ParserConfig {
     }
 }
 
+pub(super) struct Parser {
+    pub config: ParserConfig,
+}
+
+impl Parser {
+    // We tried inventing trait type aliases
+    // Parser<I, O> === FnMut(I) -> IResult<I, O>
+    // trait Parser<I, O>: FnMut(I) -> IResult<I, O> {}
+    // impl<T, I, O> Parser<I, O> for T where T: FnMut(I) -> IResult<I, O> {}
+    // Unfortunately, dyn Generator is not infered correctly, so we can't use it
+
+    pub(super) fn parse_template_str<'a>(&self, i: &'a str) -> anyhow::Result<Vec<DynDirective>> {
+        let r = many0(alt((
+            template_block(&self.config),
+            // Text
+            map(is_not(self.config.odelim.as_str()), |t: &str| {
+                let boxed_text: DynDirective = Rc::new(t.trim().to_string());
+                boxed_text
+            }),
+        )))(i);
+
+        // Litefimes
+        let template = match r {
+            Ok((_, blocks)) => Ok(blocks),
+            Err(e) => Err(anyhow::anyhow!("{}", e)),
+        }?;
+
+        anyhow::Ok(template)
+    }
+}
+
 // TODO: this is hacky
 /* like &str::trim_end but not removing \n's */
 fn trim_keep_newline(s: &str) -> String {
@@ -69,27 +100,6 @@ fn trim_keep_newline(s: &str) -> String {
         .chars()
         .rev()
         .collect()
-}
-
-// Epic being abusive of the type system
-// we just invented trait type aliases
-// FnMut(I) -> IResult<I, O>  ===  Paser<I, O>
-// trait Parser<I, O>: FnMut(I) -> IResult<I, O> {}
-// impl<T, I, O> Parser<I, O> for T where T: FnMut(I) -> IResult<I, O> {}
-// Unfortunately, dyn Generator is not infered correctly
-
-pub(super) fn parse_template_str<'a>(
-    c: &'a ParserConfig,
-    i: &'a str,
-) -> IResult<&'a str, Vec<DynDirective>> {
-    many0(alt((
-        template_block(c),
-        // Text
-        map(is_not(c.odelim.as_str()), |t: &str| {
-            let boxed_text: DynDirective = Rc::new(t.trim().to_string());
-            boxed_text
-        }),
-    )))(i)
 }
 
 /* Either text or some directive */
@@ -385,7 +395,10 @@ mod tests {
             Rc::new("\n\nSome Text Outside\n\n"),
         ];
 
-        let result = parse_template_str(&PARSER_CONFIG, template).unwrap().1;
+        let parser = Parser {
+            config: PARSER_CONFIG.clone(),
+        };
+        let result = parser.parse_template_str(template).unwrap();
         compare_vec_templateblocks(result, expected);
     }
 
