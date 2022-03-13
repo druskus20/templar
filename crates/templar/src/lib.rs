@@ -1,11 +1,10 @@
 #![allow(dead_code)]
 #![feature(drain_filter)]
 
-pub mod config;
-pub mod engine;
-pub mod template;
-mod utils;
-
 mod commands;
+pub mod config;
+pub mod director;
+pub mod engine;
 mod opt;
 mod paths;
+mod utils;

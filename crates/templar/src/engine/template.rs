@@ -1,12 +1,10 @@
-mod directives;
-pub(super) mod parser; // TODO: change this and separate ParserConfig into a separate mod
-
 use std::fmt::Debug;
 use std::path::Path;
 
+use super::directives::DynDirective;
+use super::parser;
+use super::parser::ParserConfig;
 use anyhow::Result;
-use directives::DynDirective;
-use parser::ParserConfig;
 
 #[derive(Debug, Clone)]
 pub struct Template {

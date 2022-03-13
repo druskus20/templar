@@ -5,10 +5,10 @@ use anyhow::Context;
 
 mod commands;
 mod config;
+mod director;
 mod engine;
 mod opt;
 mod paths;
-mod template;
 mod utils;
 
 fn main() {

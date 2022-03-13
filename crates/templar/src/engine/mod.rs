@@ -3,15 +3,18 @@ use std::path::Path;
 
 use anyhow::Result;
 
-use super::config::TemplarConfig;
-use super::template::Template;
-use crate::config::rule::Rule;
-use crate::template::parser::ParserConfig;
+mod directives;
+mod parser;
+mod template;
 
-// TOOD: Probably move into a different module
-// NOTE: Probably both Configs should be merged into one, ParserConfig being the
-// global default config for the parser which can then be overriden by template settings / rules
+use super::config::TemplarConfig; // TODO: I should not need this here, it is up to the director
+use crate::config::rule::Rule;
+use parser::ParserConfig;
+use template::Template;
+
 pub(super) struct Engine {
+    // NOTE: This should probably be turn into some sort of EngineArgs struct, containing, ParserConfig
+    //  among other things
     pub parser_config: ParserConfig,
     pub templar_config: TemplarConfig,
 }
