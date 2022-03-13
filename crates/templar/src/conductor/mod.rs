@@ -8,6 +8,12 @@ use engine::Engine;
 mod engine;
 mod trebuchet;
 
+/*
+ * TODO:
+ * I probably need some sort of Rule stack that stores the hierarchy or rules
+ * that are currently being evaluated, so that things like Include can resolve
+ * paths relatively.
+ */
 struct Conductor {
     engine: Box<dyn Engine>,
     config: TemplarConfig,
