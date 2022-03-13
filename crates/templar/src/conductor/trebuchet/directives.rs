@@ -4,7 +4,7 @@ use anyhow::Result;
 use rlua::prelude::*;
 use std::fmt::Debug;
 
-use super::{parser::ParserConfig, Template};
+use super::{parser::ParserConfig, template::Template};
 
 pub(super) type DynDirective = Rc<dyn Directive>;
 
@@ -20,6 +20,12 @@ pub(super) trait Directive: Debug {
         unimplemented!()
     }
 }
+
+/*
+ * TODO:
+ * Turn Vec<DynDirective> into a type alias for Template.
+ * Make a Parser struct, with methods to parse a Vec<DynDirective>
+ */
 
 // Text
 //impl<T> Generator for T

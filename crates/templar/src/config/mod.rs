@@ -10,7 +10,11 @@ use std::{collections::HashMap, env, path::PathBuf};
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub(super) struct TemplarConfig {
     pub rules: Vec<rule::Rule>,
+    //pub engine_args: EngineArgs,
 }
+
+// TODO:
+pub(super) struct EngineArgs {}
 
 impl<'lua> FromLua<'lua> for TemplarConfig {
     fn from_lua(lua_value: rlua::Value<'lua>, _: rlua::Context<'lua>) -> rlua::Result<Self> {

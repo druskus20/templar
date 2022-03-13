@@ -15,7 +15,8 @@ pub struct Template {
 }
 
 impl Template {
-    pub(super) fn load_from_path(
+    pub(crate) fn load_from_path(
+        // TODO: change visibility
         config: &ParserConfig,
         template_path: impl AsRef<Path>,
     ) -> Result<Self> {
@@ -23,7 +24,7 @@ impl Template {
         Self::from_str(config, &file_contents)
     }
 
-    fn from_str(config: &ParserConfig, template_str: &str) -> Result<Self> {
+    pub(super) fn from_str(config: &ParserConfig, template_str: &str) -> Result<Self> {
         // TODO: Get the ParserConfig from the template file if possible, otherwise use the argument
         //      config = parse_config(template_str);
         match parser::parse_template_str(config, template_str) {
@@ -35,7 +36,8 @@ impl Template {
         }
     }
 
-    pub(super) fn process(&self) -> Result<String> {
+    pub(crate) fn process(&self) -> Result<String> {
+        // TODO: change visibility
         let mut output = String::new();
         rlua::Lua::new().context(|lua_context| -> Result<()> {
             for block in &self.blocks {
