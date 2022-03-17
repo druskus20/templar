@@ -1,3 +1,4 @@
+use crate::conductor::trebuchet::parser::ParserConfig;
 use anyhow::Result;
 
 /*
@@ -7,5 +8,8 @@ use anyhow::Result;
 */
 
 pub(crate) trait Engine {
+    fn new(config: ParserConfig) -> Self
+    where
+        Self: Sized;
     fn run(&self, input: &str) -> Result<String>;
 }

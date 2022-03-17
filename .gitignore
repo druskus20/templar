@@ -9,6 +9,7 @@
 /target
 
 .vscode
+templar.lua
 
 
 # Added by cargo

@@ -5,5 +5,4 @@ mod commands;
 pub mod conductor;
 pub mod config;
 mod opt;
-mod paths;
 mod utils;

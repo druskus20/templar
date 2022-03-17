@@ -10,4 +10,12 @@ function M._create_default_rule()
     return _create_default_rule()
 end
 
+function M.setup(config)
+    return setup(config)
+end
+
+function M.print_config(config)
+    return print_config(config)
+end
+
 return M

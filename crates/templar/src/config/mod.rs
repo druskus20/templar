@@ -10,6 +10,7 @@ use std::{collections::HashMap, env, path::PathBuf};
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub(super) struct TemplarConfig {
     pub rules: Vec<rule::Rule>,
+    pub dest_base: PathBuf,
     //pub engine_args: EngineArgs,
 }
 
@@ -19,8 +20,12 @@ pub(super) struct EngineArgs {}
 impl<'lua> FromLua<'lua> for TemplarConfig {
     fn from_lua(lua_value: rlua::Value<'lua>, _: rlua::Context<'lua>) -> rlua::Result<Self> {
         if let LuaValue::Table(lua_table) = lua_value {
+            let dest_base: String = lua_table.get("dest_base")?;
+            let home = std::env::var("HOME").to_lua_err()?; // TODO: descriptive error
+            let dest_base = dest_base.replace('~', home.as_str()).into();
             Ok(TemplarConfig {
                 rules: lua_table.get("rules")?,
+                dest_base: dest_base,
             })
         } else {
             Err(rlua::Error::external("Expected config to be a lua table"))
@@ -40,7 +45,7 @@ impl<'lua> ToLua<'lua> for TemplarConfig {
 }
 
 // TODO:
-pub fn load_config(lua: &Lua, config_file: PathBuf) -> Result<()> {
+pub fn require_config(lua: &Lua, config_file: PathBuf) -> Result<()> {
     let config_filename = config_file
         .file_stem()
         .ok_or_else(|| anyhow::anyhow!("No config file name"))?
@@ -98,6 +103,6 @@ mod tests {
 
         // Test starts here
         let lua = Lua::new();
-        load_config(&lua, config_path).unwrap();
+        require_config(&lua, config_path).unwrap();
     }
 }

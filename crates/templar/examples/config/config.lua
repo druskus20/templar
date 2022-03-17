@@ -1,5 +1,3 @@
-local templar = require("templar")
-
 function dump(o)
    if type(o) == 'table' then
       local s = '{ '
@@ -12,6 +10,8 @@ function dump(o)
       return tostring(o)
    end
 end
+
+local templar = require("example")
 
 print("Default rule ----\n")
 local default_rule = templar._create_default_rule()
@@ -40,4 +40,20 @@ local rule_with_nested_rules = {
       },
    },
 }
+
 templar.print_rule(rule_with_nested_rules)
+
+local config = {
+   rules = {
+      default_rule,
+      rule_from_lua,
+      rule_with_nested_rules,
+   },
+   dest_base = "/home/druskus/",
+}
+
+templar.setup(config)
+
+print("\n\nConfig ----\n")
+templar.print_config(config)
+

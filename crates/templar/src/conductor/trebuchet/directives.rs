@@ -5,6 +5,7 @@ use rlua::prelude::*;
 use std::fmt::Debug;
 
 use super::parser::ParserConfig;
+use super::Engine;
 
 pub(super) type DynDirective = Rc<dyn Directive>;
 

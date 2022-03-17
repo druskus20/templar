@@ -4,7 +4,7 @@ use anyhow::Result;
 use parser::Parser;
 
 mod directives;
-mod parser;
+pub mod parser; // TODO change visibility after abstracting ParserConfig
 
 pub(super) struct Trebuchet {
     parser: Parser, // TODO: maybe this should be a reference? Includes create new Treckbuckets
@@ -21,16 +21,6 @@ impl Default for Trebuchet {
 }
 
 impl Trebuchet {
-    // NOTE: This method should ideally be on the trait Engine, so the conductor can call it for any engine
-    // It should also take EngineArgs instead of ParserConfig
-    fn new(parser_config: ParserConfig) -> Self {
-        Trebuchet {
-            parser: Parser {
-                config: parser_config,
-            },
-        }
-    }
-
     fn process_template_str(&self, template_str: &str) -> Result<String> {
         let directives = self.parser.parse_template_str(template_str)?;
         let mut output = String::new();
@@ -46,6 +36,16 @@ impl Trebuchet {
 }
 
 impl Engine for Trebuchet {
+    // NOTE: This method should ideally be on the trait Engine, so the conductor can call it for any engine
+    // It should also take EngineArgs instead of ParserConfig
+    fn new(parser_config: ParserConfig) -> Self {
+        Trebuchet {
+            parser: Parser {
+                config: parser_config,
+            },
+        }
+    }
+
     fn run(&self, input: &str) -> Result<String> {
         self.process_template_str(input)
     }
@@ -53,6 +53,7 @@ impl Engine for Trebuchet {
 
 #[cfg(test)]
 mod tests {
+    use super::Engine;
     use super::{parser::ParserConfig, Trebuchet};
     use indoc::indoc;
 

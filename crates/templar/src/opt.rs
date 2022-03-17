@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -19,7 +21,21 @@ pub(super) fn from_args() -> Opt {
 #[derive(Debug, StructOpt)]
 pub enum TemplarCommand {
     /// Run templar
-    Run,
+    Run(Run),
     /// Generate the lua module for Templar
-    Generate,
+    Generate(Generate),
+}
+
+#[derive(Debug, StructOpt)]
+pub struct Generate {
+    /// Path to the file to generate
+    #[structopt(short, long)]
+    pub file_path: Option<PathBuf>,
+}
+
+#[derive(Debug, StructOpt)]
+pub struct Run {
+    /// Path to the file to generate
+    #[structopt(short, long)]
+    pub config_path: Option<PathBuf>,
 }

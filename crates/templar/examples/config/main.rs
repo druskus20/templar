@@ -8,9 +8,8 @@ fn main() -> Result<()> {
 
     let lua = Lua::new();
     templar::config::api::register_lua_api(&lua)?;
-    templar::config::api::gen_lua_wrapper(PathBuf::from("templar.lua"))?;
+    templar::config::api::gen_lua_wrapper(PathBuf::from("example.lua"))?;
 
-    templar::config::load_config(&lua, PathBuf::from("./templar.lua"))?;
-    templar::config::load_config(&lua, PathBuf::from("./config.lua"))?;
+    templar::config::require_config(&lua, PathBuf::from("./config.lua"))?;
     Ok(())
 }
