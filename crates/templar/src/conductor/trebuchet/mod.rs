@@ -6,6 +6,7 @@ use parser::Parser;
 mod directives;
 pub mod parser; // TODO change visibility after abstracting ParserConfig
 
+#[derive(Debug, Clone)]
 pub(super) struct Trebuchet {
     parser: Parser, // TODO: maybe this should be a reference? Includes create new Treckbuckets
 }

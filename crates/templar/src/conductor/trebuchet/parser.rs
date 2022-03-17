@@ -58,6 +58,7 @@ impl Default for ParserConfig {
     }
 }
 
+#[derive(Debug, Clone)]
 pub(super) struct Parser {
     pub config: ParserConfig,
 }

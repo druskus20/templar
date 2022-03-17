@@ -1,5 +1,6 @@
 use crate::conductor::trebuchet::parser::ParserConfig;
 use anyhow::Result;
+use dyn_clone::DynClone;
 
 /*
  * This trait will maybe become a plugin system one day. Will probably need
@@ -7,7 +8,9 @@ use anyhow::Result;
  * woo
 */
 
-pub(crate) trait Engine {
+dyn_clone::clone_trait_object!(Engine);
+
+pub(crate) trait Engine: DynClone {
     fn new(config: ParserConfig) -> Self
     where
         Self: Sized;

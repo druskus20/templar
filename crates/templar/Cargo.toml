@@ -15,3 +15,4 @@ nom = "7.1.*"
 rlua = "0.19.*"
 lua-export = { path = "../lua-export" }
 structopt = "0.3.*"
+dyn-clone = "1.0.5"

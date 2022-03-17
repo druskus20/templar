@@ -14,7 +14,7 @@ mod trebuchet;
  * that are currently being evaluated, so that things like Include can resolve
  * paths relatively.
  */
-// TODO: #[derive(Clone)] cant because Engine requires Sized. look into DynClone again
+#[derive(Clone)]
 pub(super) struct Conductor {
     engine: Box<dyn Engine>,
     config: TemplarConfig,
