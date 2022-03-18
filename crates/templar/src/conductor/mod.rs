@@ -5,8 +5,8 @@ use crate::config::{rule::Rule, TemplarConfig};
 use anyhow::Result;
 use engine::Engine;
 
-mod engine;
-mod trebuchet;
+pub(super) mod engine;
+pub(super) mod trebuchet;
 
 /*
  * TODO:

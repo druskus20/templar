@@ -31,6 +31,15 @@ impl Default for TemplarConfig {
 // TODO:
 pub(super) struct EngineArgs {}
 
+/* TODO:
+ * This is not being called at the moment, that is because the lua api supports building a TemplarConfig
+ * progressively, thus, not needing to pass the TemplarConfig object into lua.
+ * This is a source of errors, as we need to make sure that the resolution of paths happens in the
+ * same way as it would if we were building a TemplarConfig object with lua functions
+ *
+ * NOTE: Probably have a set of functions for resolving paths in crate::utils, that can be used by
+ * any module, therefore standardizing the way paths are resolved.
+ */
 impl<'lua> FromLua<'lua> for TemplarConfig {
     fn from_lua(lua_value: rlua::Value<'lua>, _: rlua::Context<'lua>) -> rlua::Result<Self> {
         if let LuaValue::Table(lua_table) = lua_value {
