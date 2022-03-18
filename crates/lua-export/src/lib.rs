@@ -67,6 +67,7 @@ fn gen_create_lua_wrapper(function_signs: &[FunctionSignature]) -> Result<ItemFn
             let args = &sign
                 .args
                 .iter()
+                .skip(1) // Skip the config argument
                 .map(|arg| arg.to_string())
                 .collect::<Vec<_>>()
                 .join(", ");

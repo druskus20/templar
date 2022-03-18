@@ -1,16 +1,27 @@
 #[macro_use]
 extern crate lua_export;
 
+pub(crate) mod config {
+    #[derive(Clone)]
+    pub struct TemplarConfig {}
+}
+
 #[lua_export_mod]
 mod lua_export_test {
+    use std::sync::{Arc, Mutex};
+
+    use crate::config::TemplarConfig;
 
     #[lua_export]
-    pub fn foo() -> Result<String, std::num::ParseIntError> {
+    pub fn foo(_config: Arc<Mutex<TemplarConfig>>) -> Result<String, std::num::ParseIntError> {
         Ok("foo".to_string())
     }
 
     #[lua_export]
-    pub fn bar(_argum: String) -> Result<(), std::num::ParseIntError> {
+    pub fn bar(
+        _config: Arc<Mutex<TemplarConfig>>,
+        _argum: String,
+    ) -> Result<(), std::num::ParseIntError> {
         "bar".to_string();
         Ok(())
     }
@@ -18,11 +29,13 @@ mod lua_export_test {
     #[cfg(test)]
     mod tests {
         use super::{gen_lua_wrapper, register_lua_api};
+        use std::sync::{Arc, Mutex};
 
         #[test]
         fn test_lua_export() {
             let lua = rlua::Lua::new();
-            register_lua_api(&lua).unwrap();
+            let config = Arc::new(Mutex::new(super::TemplarConfig {}));
+            register_lua_api(config, &lua).unwrap();
 
             let root = tempdir::TempDir::new("test_lua_export").unwrap();
             let path = root.path().join("lib.lua");
