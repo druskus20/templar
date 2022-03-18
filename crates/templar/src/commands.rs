@@ -1,13 +1,20 @@
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::Result;
 use rlua::Lua;
+
+use crate::config::TemplarConfig;
 
 use super::opt::{Generate, Run};
 
 pub(super) fn run(run: &Run) -> Result<()> {
     let lua = Lua::new();
-    super::config::api::register_lua_api(&lua)?;
+    let config = TemplarConfig::default();
+    let arked_config = Arc::new(Mutex::new(config));
+    super::config::api::register_lua_api(arked_config, &lua)?;
 
     let config_path = if let Some(path) = run.config_path.as_ref() {
         PathBuf::from(path).canonicalize()?

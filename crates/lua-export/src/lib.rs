@@ -83,7 +83,7 @@ fn gen_create_lua_wrapper(function_signs: &[FunctionSignature]) -> Result<ItemFn
         .collect::<Vec<_>>();
 
     syn::parse2(quote!(
-        pub fn gen_lua_wrapper(path: impl AsRef<std::path::Path>) -> std::result::Result<(), std::io::Error> {
+        pub(crate) fn gen_lua_wrapper(path: impl AsRef<std::path::Path>) -> std::result::Result<(), std::io::Error> {
             use std::io::Write;
             let mut file = std::fs::File::create(path)?;
             file.write_all(
@@ -104,15 +104,27 @@ fn gen_register_lua_api(function_signs: &[FunctionSignature]) -> Result<ItemFn, 
         .map(|sign| {
             let function_name_str = &sign.name.to_string();
             let function_name = &sign.name;
-            let args = &sign.args;
+            let args = &sign.args.iter().skip(1).collect::<Vec<_>>(); // Skip the config argument
             quote!(
-                globals.set(#function_name_str, lua_context.create_function(|_, (#(#args),*)| #function_name(#(#args),*).to_lua_err())?)?;
+                {
+                    let config = config.clone();
+                    globals.set(
+                        #function_name_str,
+                        lua_context.create_function(move |_, (#(#args),*)| {
+                            #function_name(config.clone(), #(#args),*).to_lua_err()
+                        })?
+                    )
+                }?;
             )
         })
         .collect::<Vec<_>>();
 
     syn::parse2(quote!(
-        pub fn register_lua_api(lua: &rlua::prelude::Lua) -> std::result::Result<(), rlua::prelude::LuaError> {
+        // TODO: Including my own type inside the macro is ugly. Maybe being generic via a parameter would be better...?
+        pub(crate) fn register_lua_api(
+            config: std::sync::Arc<std::sync::Mutex<crate::config::TemplarConfig>>,
+            lua: &rlua::prelude::Lua
+        ) -> std::result::Result<(), rlua::prelude::LuaError> {
         use rlua::ExternalResult;
             lua.context(|lua_context| {
                 let globals =  lua_context.globals();

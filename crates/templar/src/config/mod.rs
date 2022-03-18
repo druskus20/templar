@@ -7,11 +7,25 @@ use anyhow::Result;
 use rlua::prelude::*;
 use std::{collections::HashMap, env, path::PathBuf};
 
-#[derive(Clone, Debug, Eq, PartialEq, Default)]
-pub(super) struct TemplarConfig {
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct TemplarConfig {
     pub rules: Vec<rule::Rule>,
     pub dest_base: PathBuf,
     //pub engine_args: EngineArgs,
+}
+
+impl Default for TemplarConfig {
+    fn default() -> Self {
+        let dest_base = PathBuf::from(".")
+            .canonicalize()
+            .unwrap_or_else(|e| panic!("Could not canonicalize current directory. {}", e));
+
+        TemplarConfig {
+            rules: vec![],
+            dest_base,
+            //engine_args: EngineArgs::default(),
+        }
+    }
 }
 
 // TODO:
