@@ -17,24 +17,34 @@ mod lua_functions {
     use super::*;
 
     #[lua_export]
-    fn print_rule(_config: Arc<Mutex<TemplarConfig>>, lua_rule: Rule) -> Result<()> {
+    fn print_rule(config: Arc<Mutex<TemplarConfig>>, lua_rule: Rule) -> Result<()> {
         println!("{:?}", lua_rule);
+        dbg!(config);
         Ok(())
     }
 
     #[lua_export]
-    fn _create_default_rule(_config: Arc<Mutex<TemplarConfig>>) -> Result<Rule> {
+    fn _create_default_rule(config: Arc<Mutex<TemplarConfig>>) -> Result<Rule> {
+        dbg!(config);
         Ok(Rule::default())
     }
 
     #[lua_export]
-    fn setup(_config: Arc<Mutex<TemplarConfig>>) -> Result<()> {
+    fn setup(config: Arc<Mutex<TemplarConfig>>) -> Result<()> {
+        dbg!(config);
         Ok(())
     }
 
     #[lua_export]
     fn print_config(config: Arc<Mutex<TemplarConfig>>) -> Result<()> {
         println!("{:?}", config);
+        dbg!(config);
+        Ok(())
+    }
+
+    #[lua_export]
+    fn add_rule_to_config(config: Arc<Mutex<TemplarConfig>>, rule: Rule) -> Result<()> {
+        config.lock().unwrap().rules.push(rule); // unwrap?
         Ok(())
     }
 }
