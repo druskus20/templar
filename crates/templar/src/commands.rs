@@ -53,7 +53,7 @@ pub(super) fn run(run: &Run) -> Result<()> {
     // TODO: At the moment all of these are being hardcoded
     let parser_config = super::conductor::trebuchet::parser::ParserConfig::default();
     let engine = super::conductor::trebuchet::Trebuchet::new(parser_config);
-    let _conductor = super::conductor::Conductor::new(Box::new(engine), dbg!(config));
+    let _conductor = super::conductor::Conductor::new(Box::new(engine), config);
     // conductor.conduct()?;
     Ok(())
 }
