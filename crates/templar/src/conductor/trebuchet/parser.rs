@@ -10,14 +10,12 @@
  */
 
 use super::directives;
-use super::directives::Directive;
 use super::directives::DynDirective;
 
 use nom::character::complete::{alphanumeric1, space0, space1};
 use nom::combinator::opt;
 use nom::error::ParseError;
 use nom::sequence::tuple;
-use std::rc::Rc;
 
 use nom::{
     branch::alt,
@@ -75,7 +73,7 @@ impl Parser {
             template_block(&self.config),
             // Text
             map(is_not(self.config.odelim.as_str()), |t: &str| {
-                let boxed_text: DynDirective = Rc::new(t.trim().to_string());
+                let boxed_text: DynDirective = Box::new(t.trim().to_string());
                 boxed_text
             }),
         )))(i);
@@ -115,7 +113,7 @@ fn template_block<'a>(
         // NOTE: cdelim? odelim?
         // Text
         map(is_not(c.odelim.as_str()), |t: &str| {
-            let boxed_text: DynDirective = Rc::new(trim_keep_newline(t));
+            let boxed_text: DynDirective = Box::new(trim_keep_newline(t));
             boxed_text
         }),
     ))
@@ -132,7 +130,7 @@ fn include_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a 
             cdelim(c),
         )(i)?;
 
-        let include_block: Rc<dyn Directive> = Rc::new(directives::Include {
+        let include_block: DynDirective = Box::new(directives::Include {
             path: path.trim().to_string(),
             parser_config: c.clone(),
         });
@@ -187,7 +185,7 @@ fn transform_block<'a>(
 
         Ok((
             i,
-            Rc::new(directives::Transform {
+            Box::new(directives::Transform {
                 transform: trim_keep_newline(transform),
                 blocks,
                 input_name: input_name.to_string(),
@@ -225,7 +223,7 @@ fn if_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, 
 
         Ok((
             i,
-            Rc::new(directives::If {
+            Box::new(directives::If {
                 condition: condition.to_string(),
                 blocks,
             }),
@@ -269,7 +267,7 @@ fn named_tag<'a>(
  */
 fn ifelse_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a str, DynDirective> {
     |i| {
-        // (&str, (&str, Vec<Rc<dyn templating::directive::Generator>>, &str))
+        // (&str, (&str, Vec<Box<dyn templating::directive::Generator>>, &str))
         let (i, condition) = if_line(c)(i)?;
         let (i, if_blocks) = many0(template_block(c))(i)?;
         let (i, _) = named_tag(c, c.else_.as_str())(i)?;
@@ -278,7 +276,7 @@ fn ifelse_block<'a>(c: &'a ParserConfig) -> impl FnMut(&'a str) -> IResult<&'a s
 
         Ok((
             i,
-            Rc::new(directives::IfElse {
+            Box::new(directives::IfElse {
                 condition: condition.trim().to_string(),
                 if_blocks,
                 else_blocks,
@@ -360,40 +358,40 @@ mod tests {
         );
 
         let expected: Vec<DynDirective> = vec![
-            Rc::new(directives::Include {
+            Box::new(directives::Include {
                 path: "./test.html".to_string(),
                 parser_config: PARSER_CONFIG.clone(),
             }),
-            Rc::new("\n"),
-            Rc::new(directives::If {
+            Box::new("\n"),
+            Box::new(directives::If {
                 condition: "true".to_string(),
-                blocks: vec![Rc::new("    Text inside an If\n")],
+                blocks: vec![Box::new("    Text inside an If\n")],
             }),
-            Rc::new("\n\nSome Text In between\n\n\n"),
-            Rc::new(directives::IfElse {
+            Box::new("\n\nSome Text In between\n\n\n"),
+            Box::new(directives::IfElse {
                 condition: "true".to_string(),
                 if_blocks: vec![
-                    Rc::new(directives::Include {
+                    Box::new(directives::Include {
                         path: "./test.html".to_string(),
                         parser_config: PARSER_CONFIG.clone(),
                     }),
-                    Rc::new("\n"),
-                    Rc::new(directives::Transform {
+                    Box::new("\n"),
+                    Box::new(directives::Transform {
                         transform: "        lua\n".to_string(),
-                        blocks: vec![Rc::new("        text\n")],
+                        blocks: vec![Box::new("        text\n")],
                         input_name: "i".to_string(),
                     }),
-                    Rc::new("\n    text ouside transform\n"),
+                    Box::new("\n    text ouside transform\n"),
                 ],
                 else_blocks: vec![
-                    Rc::new(directives::Include {
+                    Box::new(directives::Include {
                         path: "./test.html".to_string(),
                         parser_config: PARSER_CONFIG.clone(),
                     }),
-                    Rc::new("\n    Some Text Inside\n"),
+                    Box::new("\n    Some Text Inside\n"),
                 ],
             }),
-            Rc::new("\n\nSome Text Outside\n\n"),
+            Box::new("\n\nSome Text Outside\n\n"),
         ];
 
         let parser = Parser {
@@ -445,7 +443,7 @@ mod tests {
 
         let expected = directives::If {
             condition: "condition".to_string(),
-            blocks: vec![Rc::new("    text\n    text\n")],
+            blocks: vec![Box::new("    text\n    text\n")],
         };
 
         let result = if_block(&PARSER_CONFIG)(input).unwrap().1;
@@ -484,8 +482,8 @@ mod tests {
 
         let expected = directives::IfElse {
             condition: "condition".to_string(),
-            if_blocks: vec![Rc::new("text\n")],
-            else_blocks: vec![Rc::new("text\n")],
+            if_blocks: vec![Box::new("text\n")],
+            else_blocks: vec![Box::new("text\n")],
         };
 
         let result = ifelse_block(&PARSER_CONFIG)(input).unwrap().1;
@@ -520,7 +518,7 @@ mod tests {
 
         let expected = directives::Transform {
             transform: "    luacode\n    luacode\n".to_string(),
-            blocks: vec![Rc::new("    text\n    text\n")],
+            blocks: vec![Box::new("    text\n    text\n")],
             input_name: "input".to_string(),
         };
 

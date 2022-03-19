@@ -1,15 +1,18 @@
-use std::{path::PathBuf, rc::Rc};
+use std::path::PathBuf;
 
 use anyhow::Result;
+use dyn_clone::DynClone;
 use rlua::prelude::*;
 use std::fmt::Debug;
 
 use super::parser::ParserConfig;
 use super::Engine;
 
-pub(super) type DynDirective = Rc<dyn Directive>;
+pub(super) type DynDirective = Box<dyn Directive>;
 
-pub(super) trait Directive: Debug {
+dyn_clone::clone_trait_object!(Directive);
+
+pub(super) trait Directive: Debug + DynClone {
     /* Generates a String from a Directive. */
     // NOTE: Possibly store ParserConfig inside Include and pass it from the parser?
     // NOTE: Possibly lua_context might be handled differently once I figure out how to to scopes
@@ -162,11 +165,11 @@ mod tests {
     fn test_directive_if() {
         let directive_true = If {
             condition: "true".to_string(),
-            blocks: vec![Rc::new("some text".to_string())],
+            blocks: vec![Box::new("some text".to_string())],
         };
         let directive_false = If {
             condition: "false".to_string(),
-            blocks: vec![Rc::new("some text".to_string())],
+            blocks: vec![Box::new("some text".to_string())],
         };
         Lua::new().context(|lua_context| {
             let result = directive_true.generate(&lua_context).unwrap();
@@ -182,13 +185,13 @@ mod tests {
     fn test_directive_ifelse() {
         let directive_true = IfElse {
             condition: "true".to_string(),
-            if_blocks: vec![Rc::new("some text".to_string())],
-            else_blocks: vec![Rc::new("some more text".to_string())],
+            if_blocks: vec![Box::new("some text".to_string())],
+            else_blocks: vec![Box::new("some more text".to_string())],
         };
         let directive_false = IfElse {
             condition: "false".to_string(),
-            if_blocks: vec![Rc::new("some text".to_string())],
-            else_blocks: vec![Rc::new("some more text".to_string())],
+            if_blocks: vec![Box::new("some text".to_string())],
+            else_blocks: vec![Box::new("some more text".to_string())],
         };
         Lua::new().context(|lua_context| {
             let result = directive_true.generate(&lua_context).unwrap();
@@ -230,7 +233,7 @@ mod tests {
         let directive = Transform {
             input_name: "input".to_string(),
             transform: "input:gsub(\"RED\", \"#FF0000\")".to_string(),
-            blocks: vec![Rc::new("some text in RED".to_string())],
+            blocks: vec![Box::new("some text in RED".to_string())],
         };
         Lua::new().context(|lua_context| {
             let result = directive.generate(&lua_context).unwrap();
