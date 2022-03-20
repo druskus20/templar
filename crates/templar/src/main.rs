@@ -6,6 +6,7 @@ use anyhow::Context;
 mod commands;
 mod conductor;
 mod config;
+mod fs;
 mod opt;
 mod utils;
 

@@ -8,6 +8,8 @@ use dyn_clone::DynClone;
  * woo
 */
 
+// NOTE: This is unnecessary at the moment, but it makes it so I can derive
+// Clone for the structs containing Engine.
 dyn_clone::clone_trait_object!(Engine);
 
 pub(crate) trait Engine: DynClone {

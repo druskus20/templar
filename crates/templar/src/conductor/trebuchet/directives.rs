@@ -10,6 +10,8 @@ use super::Engine;
 
 pub(super) type DynDirective = Box<dyn Directive>;
 
+// NOTE: This is unnecessary at the moment, but it makes it so I can derive
+// Clone for the structs containing DynDirective.
 dyn_clone::clone_trait_object!(Directive);
 
 pub(super) trait Directive: Debug + DynClone {
