@@ -1,5 +1,4 @@
-use super::rule::Rule;
-use super::TemplarConfig;
+use super::rawrule::RawRule;
 use anyhow::Result;
 use lua_export::*;
 
@@ -14,36 +13,38 @@ mod lua_functions {
     use std::sync::Arc;
     use std::sync::Mutex;
 
+    use crate::config::RawConfig;
+
     use super::*;
 
     #[lua_export]
-    fn print_rule(config: Arc<Mutex<TemplarConfig>>, lua_rule: Rule) -> Result<()> {
+    fn print_rule(config: Arc<Mutex<RawConfig>>, lua_rule: RawRule) -> Result<()> {
         println!("{:?}", lua_rule);
         dbg!(config);
         Ok(())
     }
 
     #[lua_export]
-    fn _create_default_rule(config: Arc<Mutex<TemplarConfig>>) -> Result<Rule> {
+    fn _create_default_rule(config: Arc<Mutex<RawConfig>>) -> Result<RawRule> {
         dbg!(config);
-        Ok(Rule::default())
+        Ok(RawRule::default())
     }
 
     #[lua_export]
-    fn setup(config: Arc<Mutex<TemplarConfig>>) -> Result<()> {
+    fn setup(config: Arc<Mutex<RawConfig>>) -> Result<()> {
         dbg!(config);
         Ok(())
     }
 
     #[lua_export]
-    fn print_config(config: Arc<Mutex<TemplarConfig>>) -> Result<()> {
+    fn print_config(config: Arc<Mutex<RawConfig>>) -> Result<()> {
         println!("{:?}", config);
         dbg!(config);
         Ok(())
     }
 
     #[lua_export]
-    fn add_rule_to_config(config: Arc<Mutex<TemplarConfig>>, rule: Rule) -> Result<()> {
+    fn add_rule_to_config(config: Arc<Mutex<RawConfig>>, rule: RawRule) -> Result<()> {
         config.lock().unwrap().rules.push(rule); // unwrap?
         Ok(())
     }

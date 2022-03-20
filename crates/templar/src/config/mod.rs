@@ -1,17 +1,30 @@
-pub mod api; // TODO: Make this pub(super) once examples/ is not required
+pub(super) mod api; // TODO: Make this pub(super) once examples/ is not required
+mod rawrule;
 pub(super) mod rule;
-
-use crate::hashmap;
 
 use anyhow::Result;
 use rlua::prelude::*;
-use std::{collections::HashMap, env, path::PathBuf};
+use std::{env, path::PathBuf};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub(crate) struct TemplarConfig {
     pub rules: Vec<rule::Rule>,
     pub dest_base: PathBuf,
     //pub engine_args: EngineArgs,
+}
+
+impl TemplarConfig {
+    pub(crate) fn from_raw_config(raw_config: RawConfig) -> Result<Self> {
+        Ok(TemplarConfig {
+            rules: raw_config
+                .rules
+                .into_iter()
+                .map(|raw_rule| rule::Rule::from_raw_rule(raw_rule))
+                .collect::<Result<Vec<_>>>()?,
+            dest_base: PathBuf::from(raw_config.dest_base),
+            //engine_args: raw_config.engine_args,
+        })
+    }
 }
 
 impl Default for TemplarConfig {
@@ -28,44 +41,14 @@ impl Default for TemplarConfig {
     }
 }
 
+#[derive(Clone, Default, Debug)]
+pub(crate) struct RawConfig {
+    pub rules: Vec<rawrule::RawRule>,
+    pub dest_base: String,
+}
+
 // TODO:
 pub(super) struct EngineArgs {}
-
-/* TODO:
- * This is not being called at the moment, that is because the lua api supports building a TemplarConfig
- * progressively, thus, not needing to pass the TemplarConfig object into lua.
- * This is a source of errors, as we need to make sure that the resolution of paths happens in the
- * same way as it would if we were building a TemplarConfig object with lua functions
- *
- * NOTE: Probably have a set of functions for resolving paths in crate::utils, that can be used by
- * any module, therefore standardizing the way paths are resolved.
- */
-impl<'lua> FromLua<'lua> for TemplarConfig {
-    fn from_lua(lua_value: rlua::Value<'lua>, _: rlua::Context<'lua>) -> rlua::Result<Self> {
-        if let LuaValue::Table(lua_table) = lua_value {
-            let dest_base: String = lua_table.get("dest_base")?;
-            let home = std::env::var("HOME").to_lua_err()?; // TODO: descriptive error
-            let dest_base = dest_base.replace('~', home.as_str()).into();
-            Ok(TemplarConfig {
-                rules: lua_table.get("rules")?,
-                dest_base: dest_base,
-            })
-        } else {
-            Err(rlua::Error::external("Expected config to be a lua table"))
-        }
-    }
-}
-
-impl<'lua> ToLua<'lua> for TemplarConfig {
-    fn to_lua(self, lua: rlua::Context<'lua>) -> rlua::Result<LuaValue<'lua>> {
-        let hashmap: HashMap<&str, LuaValue> = hashmap!(
-            "rule" => self.rules.to_lua(lua)?,
-        );
-        Ok(LuaValue::Table(LuaContext::create_table_from(
-            lua, hashmap,
-        )?))
-    }
-}
 
 // TODO:
 pub fn require_config(lua: &Lua, config_file: PathBuf) -> Result<()> {

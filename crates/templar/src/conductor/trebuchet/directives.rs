@@ -10,6 +10,8 @@ use super::Engine;
 
 pub(super) type DynDirective = Box<dyn Directive>;
 
+/* NOTE: Possibly unnecessary to even use DynClone at all?: RC should be faster, and even then I only
+have it so I can #[derive(Clone)] just in case I need it */
 dyn_clone::clone_trait_object!(Directive);
 
 pub(super) trait Directive: Debug + DynClone {

@@ -123,7 +123,7 @@ fn gen_register_lua_api(function_signs: &[FunctionSignature]) -> Result<ItemFn, 
     syn::parse2(quote!(
         // TODO: Including my own type inside the macro is ugly. Maybe being generic via a parameter would be better...?
         pub(crate) fn register_lua_api(
-            config: std::sync::Arc<std::sync::Mutex<crate::config::TemplarConfig>>,
+            config: std::sync::Arc<std::sync::Mutex<crate::config::RawConfig>>,
             lua: &rlua::prelude::Lua
         ) -> std::result::Result<(), rlua::prelude::LuaError> {
         use rlua::ExternalResult;

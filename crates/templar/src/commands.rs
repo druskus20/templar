@@ -4,14 +4,17 @@ use std::{
 };
 
 use super::opt::{Generate, Run};
-use crate::conductor::engine::Engine;
-use crate::config::TemplarConfig;
+use crate::{
+    conductor::engine::Engine,
+    config::{RawConfig, TemplarConfig},
+};
 use anyhow::Result;
 use rlua::Lua;
 
 pub(super) fn run(run: &Run) -> Result<()> {
     // Drop the arked config at the end...?
-    let config = TemplarConfig::default();
+    // TODO: Hide all of this inside the config module, so we can reuse it. Then change visibilities
+    let config = RawConfig::default();
     let arked_config = Arc::new(Mutex::new(config)); // Cant clone here, because I dont want a copy
     {
         // TODO: @important Captures the Arc<Mutex<TemplarConfig>>. If I want to
@@ -50,10 +53,12 @@ pub(super) fn run(run: &Run) -> Result<()> {
         .into_inner()
         .unwrap_or_else(|e| panic!("Failed to unwrap Mutex for the config: {:?}", e));
 
+    let templar_config = TemplarConfig::from_raw_config(config)?;
+
     // TODO: At the moment all of these are being hardcoded
     let parser_config = super::conductor::trebuchet::parser::ParserConfig::default();
     let engine = super::conductor::trebuchet::Trebuchet::new(parser_config);
-    let _conductor = super::conductor::Conductor::new(Box::new(engine), config);
+    let _conductor = super::conductor::Conductor::new(Box::new(engine), templar_config);
     // conductor.conduct()?;
     Ok(())
 }

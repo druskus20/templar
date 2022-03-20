@@ -3,23 +3,23 @@ extern crate lua_export;
 
 pub(crate) mod config {
     #[derive(Clone)]
-    pub struct TemplarConfig {}
+    pub struct RawConfig {}
 }
 
 #[lua_export_mod]
 mod lua_export_test {
     use std::sync::{Arc, Mutex};
 
-    use crate::config::TemplarConfig;
+    use crate::config::RawConfig;
 
     #[lua_export]
-    pub fn foo(_config: Arc<Mutex<TemplarConfig>>) -> Result<String, std::num::ParseIntError> {
+    pub fn foo(_config: Arc<Mutex<RawConfig>>) -> Result<String, std::num::ParseIntError> {
         Ok("foo".to_string())
     }
 
     #[lua_export]
     pub fn bar(
-        _config: Arc<Mutex<TemplarConfig>>,
+        _config: Arc<Mutex<RawConfig>>,
         _argum: String,
     ) -> Result<(), std::num::ParseIntError> {
         "bar".to_string();
@@ -34,7 +34,7 @@ mod lua_export_test {
         #[test]
         fn test_lua_export() {
             let lua = rlua::Lua::new();
-            let config = Arc::new(Mutex::new(super::TemplarConfig {}));
+            let config = Arc::new(Mutex::new(super::RawConfig {}));
             register_lua_api(config, &lua).unwrap();
 
             let root = tempdir::TempDir::new("test_lua_export").unwrap();

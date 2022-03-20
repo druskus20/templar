@@ -1,12 +1,8 @@
 use anyhow::Result;
 use glob::glob;
-use rlua::prelude::{FromLua, LuaContext, LuaValue, ToLua};
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
-use crate::hashmap;
+use super::rawrule::RawRule;
 
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub(crate) struct Rule {
@@ -14,71 +10,45 @@ pub(crate) struct Rule {
     pub targets: Vec<PathBuf>,
     pub rules: Vec<Rule>,
     pub basepath: PathBuf,
-
-    /// TODO: Maybe compute the targets from engine::Engine::run(), instead of
-    /// pre-computing them when parsing the config?
-    /// We're going to have to recurse through the rules to figure out which options
-    /// to apply anyway so...
-    ///
-    /// This should not be used, its only for implementing ToLua
-    raw_targets: String,
 }
 
-impl<'lua> FromLua<'lua> for Rule {
-    fn from_lua(lua_value: rlua::Value<'lua>, _: rlua::Context<'lua>) -> rlua::Result<Self> {
-        if let LuaValue::Table(lua_table) = lua_value {
-            let rules: Vec<Rule> = lua_table.get("rules")?;
-            let basepath: String = lua_table.get("basepath")?;
+impl Rule {
+    // TODO: Clean up this mess / test
+    pub(super) fn from_raw_rule(raw_rule: RawRule) -> Result<Self> {
+        let rules = raw_rule
+            .rules
+            .into_iter()
+            .map(|raw_rule| Rule::from_raw_rule(raw_rule))
+            .collect::<Result<Vec<_>>>()?;
 
-            // Calculate children targets and substract them from this rule's targets
-            let children_targets = rules
-                .iter()
-                .flat_map(|r| r.targets.clone())
-                .collect::<Vec<_>>();
+        let basepath: String = raw_rule.basepath;
 
-            let raw_targets: String = lua_table.get("targets")?;
+        let children_targets = rules
+            .iter()
+            .flat_map(|r| r.targets.clone())
+            .collect::<Vec<_>>();
 
-            let mut targets =
-                calc_targets(raw_targets.clone(), basepath.clone()).map_err(|err| {
-                    rlua::Error::FromLuaConversionError {
-                        to: "Rule",
-                        from: "LuaValue",
-                        message: Some(err.to_string()),
-                    }
-                })?;
+        let mut targets =
+            calc_targets(raw_rule.targets.clone(), basepath.clone()).map_err(|err| {
+                rlua::Error::FromLuaConversionError {
+                    to: "Rule",
+                    from: "LuaValue",
+                    message: Some(err.to_string()),
+                }
+            })?;
 
-            let targets = targets
-                .drain_filter(|t| !children_targets.contains(t))
-                .collect();
+        let targets = targets
+            .drain_filter(|t| !children_targets.contains(t))
+            .collect();
 
-            Ok(Rule {
-                id: lua_table.get("id")?,
-                targets,
-                rules,
-                basepath: basepath.into(),
-                raw_targets,
-            })
-        } else {
-            Err(rlua::Error::FromLuaConversionError {
-                to: "Rule",
-                from: "LuaValue",
-                message: Some("Expected rule to be a lua table".to_string()),
-            })
-        }
-    }
-}
+        let id = raw_rule.id;
 
-impl<'lua> ToLua<'lua> for Rule {
-    fn to_lua(self, lua: rlua::Context<'lua>) -> rlua::Result<LuaValue<'lua>> {
-        let hashmap: HashMap<&str, LuaValue> = hashmap!(
-            "id" => self.id.to_lua(lua)?,
-            "targets" => self.raw_targets.to_lua(lua)?,
-            "rules" => self.rules.to_lua(lua)?,
-            "basepath" => self.basepath.display().to_string().to_lua(lua)?,
-        );
-        Ok(LuaValue::Table(LuaContext::create_table_from(
-            lua, hashmap,
-        )?))
+        Ok(Rule {
+            id,
+            targets,
+            rules,
+            basepath: basepath.into(),
+        })
     }
 }
 
