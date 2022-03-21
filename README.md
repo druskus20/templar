@@ -13,3 +13,6 @@ This project is not released yet, check out [the tracking issue](https://github.
 - Completely configurable syntax on a template by template basis
 - No configuration overhead, `templar generate` is enough 
 - Fast and multithreaded
+
+## Credits
+Thanks to [guilherme](https://github.com/guilherme-svg) for the help with the logo!
