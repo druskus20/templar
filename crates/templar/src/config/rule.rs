@@ -1,24 +1,31 @@
 use anyhow::Result;
 use glob::glob;
-use std::path::{Path, PathBuf};
+use std::rc::Rc;
+use vfs::{FileSystem, VfsPath};
 
 use super::rawrule::RawRule;
+
+/*
+ * TODO:
+ * Figure out how VfsPath works with convoluted paths, now that I dont have canonicalize.
+ * Figure out how to shellexpand ~, * etc
+ */
 
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub(crate) struct Rule {
     pub id: String, // Unique identifier
-    pub targets: Vec<PathBuf>,
+    pub targets: Vec<VfsPath>,
     pub rules: Vec<Rule>,
-    pub basepath: PathBuf,
+    pub basepath: VfsPath,
 }
 
 impl Rule {
     // TODO: Clean up this mess / test
-    pub(super) fn from_raw_rule(raw_rule: RawRule) -> Result<Self> {
+    pub(super) fn from_raw_rule(raw_rule: RawRule, fs: Rc<dyn FileSystem>) -> Result<Self> {
         let rules = raw_rule
             .rules
             .into_iter()
-            .map(|raw_rule| Rule::from_raw_rule(raw_rule))
+            .map(|raw_rule| Rule::from_raw_rule(raw_rule, fs.clone()))
             .collect::<Result<Vec<_>>>()?;
 
         let basepath: String = raw_rule.basepath;
@@ -52,7 +59,7 @@ impl Rule {
     }
 }
 
-fn calc_targets(path: String, basepath: String) -> Result<Vec<PathBuf>> {
+fn calc_targets(path: String, basepath: String) -> Result<Vec<VfsPath>> {
     let home = std::env::var("HOME")?;
     let path = path.replace('~', home.as_str());
 
@@ -79,7 +86,7 @@ fn calc_targets(path: String, basepath: String) -> Result<Vec<PathBuf>> {
     Ok(targets)
 }
 
-fn expand_dir_rec(dir: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
+fn expand_dir_rec(dir: impl AsRef<VfsPath>) -> Result<Vec<VfsPath>> {
     let contents = std::fs::read_dir(dir)?;
 
     let mut targets = Vec::new();

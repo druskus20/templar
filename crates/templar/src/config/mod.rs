@@ -4,24 +4,30 @@ pub(super) mod rule;
 
 use anyhow::Result;
 use rlua::prelude::*;
-use std::{env, path::PathBuf};
+use std::{env, path::PathBuf, rc::Rc};
+use vfs::{FileSystem, VfsPath};
 
 #[derive(Clone, Debug)]
 pub(crate) struct TemplarConfig {
     pub rules: Vec<rule::Rule>,
-    pub dest_base: PathBuf,
+    pub dest_base: VfsPath,
     //pub engine_args: EngineArgs,
+
+    // NOTE: Not using DynClone for now
+    pub fs: Rc<dyn FileSystem>,
 }
 
 impl TemplarConfig {
-    pub(crate) fn from_raw_config(raw_config: RawConfig) -> Result<Self> {
+    pub(crate) fn from_raw_config(raw_config: RawConfig, fs: impl FileSystem) -> Result<Self> {
+        let fs = Rc::new(fs);
         Ok(TemplarConfig {
             rules: raw_config
                 .rules
                 .into_iter()
-                .map(|raw_rule| rule::Rule::from_raw_rule(raw_rule))
+                .map(|raw_rule| rule::Rule::from_raw_rule(raw_rule, fs.clone()))
                 .collect::<Result<Vec<_>>>()?,
             dest_base: PathBuf::from(raw_config.dest_base),
+            fs,
             //engine_args: raw_config.engine_args,
         })
     }
@@ -37,6 +43,7 @@ impl Default for TemplarConfig {
             rules: vec![],
             dest_base,
             //engine_args: EngineArgs::default(),
+            fs: Rc::new(vfs::MemoryFS::new()),
         }
     }
 }

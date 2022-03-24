@@ -10,6 +10,7 @@ use crate::{
 };
 use anyhow::Result;
 use rlua::Lua;
+use vfs::{FileSystem, PhysicalFS};
 
 pub(super) fn run(run: &Run) -> Result<()> {
     // Drop the arked config at the end...?
@@ -53,7 +54,7 @@ pub(super) fn run(run: &Run) -> Result<()> {
         .into_inner()
         .unwrap_or_else(|e| panic!("Failed to unwrap Mutex for the config: {:?}", e));
 
-    let templar_config = TemplarConfig::from_raw_config(config)?;
+    let templar_config = TemplarConfig::from_raw_config(config, PhysicalFS::new("/"))?;
 
     // TODO: At the moment all of these are being hardcoded
     let parser_config = super::conductor::trebuchet::parser::ParserConfig::default();
