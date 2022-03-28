@@ -1,45 +1,9 @@
 pub(super) mod api; // TODO: Make this pub(super) once examples/ is not required
-mod rawrule;
-pub(super) mod rule;
+pub(crate) mod rawrule;
 
 use anyhow::Result;
 use rlua::prelude::*;
 use std::{env, path::PathBuf};
-
-#[derive(Clone, Debug)]
-pub(crate) struct TemplarConfig {
-    pub rules: Vec<rule::Rule>,
-    pub dest_base: PathBuf,
-    //pub engine_args: EngineArgs,
-}
-
-impl TemplarConfig {
-    pub(crate) fn from_raw_config(raw_config: RawConfig) -> Result<Self> {
-        Ok(TemplarConfig {
-            rules: raw_config
-                .rules
-                .into_iter()
-                .map(|raw_rule| rule::Rule::from_raw_rule(raw_rule))
-                .collect::<Result<Vec<_>>>()?,
-            dest_base: PathBuf::from(raw_config.dest_base),
-            //engine_args: raw_config.engine_args,
-        })
-    }
-}
-
-impl Default for TemplarConfig {
-    fn default() -> Self {
-        let dest_base = PathBuf::from(".")
-            .canonicalize()
-            .unwrap_or_else(|e| panic!("Could not canonicalize current directory. {}", e));
-
-        TemplarConfig {
-            rules: vec![],
-            dest_base,
-            //engine_args: EngineArgs::default(),
-        }
-    }
-}
 
 #[derive(Clone, Default, Debug)]
 pub(crate) struct RawConfig {

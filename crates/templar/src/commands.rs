@@ -5,8 +5,8 @@ use std::{
 
 use super::opt::{Generate, Run};
 use crate::{
-    conductor::engine::Engine,
-    config::{RawConfig, TemplarConfig},
+    conductor::{config::TemplarConfig, engine::Engine},
+    config::RawConfig,
 };
 use anyhow::Result;
 use rlua::Lua;

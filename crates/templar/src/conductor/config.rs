@@ -2,7 +2,42 @@ use anyhow::Result;
 use glob::glob;
 use std::path::{Path, PathBuf};
 
-use super::rawrule::RawRule;
+use crate::config::{rawrule::RawRule, RawConfig};
+
+#[derive(Clone, Debug)]
+pub(crate) struct TemplarConfig {
+    pub rules: Vec<Rule>,
+    pub dest_base: PathBuf,
+    //pub engine_args: EngineArgs,
+}
+
+impl TemplarConfig {
+    pub(crate) fn from_raw_config(raw_config: RawConfig) -> Result<Self> {
+        Ok(TemplarConfig {
+            rules: raw_config
+                .rules
+                .into_iter()
+                .map(|raw_rule| Rule::from_raw_rule(raw_rule))
+                .collect::<Result<Vec<_>>>()?,
+            dest_base: PathBuf::from(raw_config.dest_base),
+            //engine_args: raw_config.engine_args,
+        })
+    }
+}
+
+impl Default for TemplarConfig {
+    fn default() -> Self {
+        let dest_base = PathBuf::from(".")
+            .canonicalize()
+            .unwrap_or_else(|e| panic!("Could not canonicalize current directory. {}", e));
+
+        TemplarConfig {
+            rules: vec![],
+            dest_base,
+            //engine_args: EngineArgs::default(),
+        }
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub(crate) struct Rule {

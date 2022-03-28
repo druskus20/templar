@@ -1,10 +1,12 @@
 use std::{io::Write, path::Path};
 
-use crate::config::{rule::Rule, TemplarConfig};
-
 use anyhow::Result;
 use engine::Engine;
 
+use config::Rule;
+use config::TemplarConfig;
+
+pub(super) mod config;
 pub(super) mod engine;
 pub(super) mod trebuchet;
 
