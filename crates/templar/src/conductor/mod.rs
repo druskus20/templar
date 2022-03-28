@@ -3,8 +3,8 @@ use std::{io::Write, path::Path};
 use anyhow::Result;
 use engine::Engine;
 
+use config::Config;
 use config::Rule;
-use config::TemplarConfig;
 
 pub(super) mod config;
 pub(super) mod engine;
@@ -19,11 +19,11 @@ pub(super) mod trebuchet;
 #[derive(Clone)]
 pub(super) struct Conductor {
     engine: Box<dyn Engine>,
-    config: TemplarConfig,
+    config: Config,
 }
 
 impl Conductor {
-    pub(super) fn new(engine: Box<dyn Engine>, config: TemplarConfig) -> Self {
+    pub(super) fn new(engine: Box<dyn Engine>, config: Config) -> Self {
         Conductor { engine, config }
     }
 

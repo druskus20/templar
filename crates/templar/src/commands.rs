@@ -5,7 +5,7 @@ use std::{
 
 use super::opt::{Generate, Run};
 use crate::{
-    conductor::{config::TemplarConfig, engine::Engine},
+    conductor::{config::Config, engine::Engine},
     config::RawConfig,
 };
 use anyhow::Result;
@@ -53,7 +53,7 @@ pub(super) fn run(run: &Run) -> Result<()> {
         .into_inner()
         .unwrap_or_else(|e| panic!("Failed to unwrap Mutex for the config: {:?}", e));
 
-    let templar_config = TemplarConfig::from_raw_config(config)?;
+    let templar_config = Config::from_raw_config(config)?;
 
     // TODO: At the moment all of these are being hardcoded
     let parser_config = super::conductor::trebuchet::parser::ParserConfig::default();

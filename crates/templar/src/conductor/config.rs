@@ -5,15 +5,15 @@ use std::path::{Path, PathBuf};
 use crate::config::{rawrule::RawRule, RawConfig};
 
 #[derive(Clone, Debug)]
-pub(crate) struct TemplarConfig {
+pub(crate) struct Config {
     pub rules: Vec<Rule>,
     pub dest_base: PathBuf,
     //pub engine_args: EngineArgs,
 }
 
-impl TemplarConfig {
+impl Config {
     pub(crate) fn from_raw_config(raw_config: RawConfig) -> Result<Self> {
-        Ok(TemplarConfig {
+        Ok(Config {
             rules: raw_config
                 .rules
                 .into_iter()
@@ -25,13 +25,13 @@ impl TemplarConfig {
     }
 }
 
-impl Default for TemplarConfig {
+impl Default for Config {
     fn default() -> Self {
         let dest_base = PathBuf::from(".")
             .canonicalize()
             .unwrap_or_else(|e| panic!("Could not canonicalize current directory. {}", e));
 
-        TemplarConfig {
+        Config {
             rules: vec![],
             dest_base,
             //engine_args: EngineArgs::default(),
