@@ -1,8 +1,14 @@
-<h1 align="center">Templar</h1>
-<p align="center">
-  <i>Config your configs!</i></br>
+# Templar
+
+
+
+<img src="https://user-images.githubusercontent.com/43417195/164338826-61179119-3574-46ae-a368-49632eaf2378.svg" height="100" align="left"/>
+<br>
+<i>Config your configs!</i></br>
 A Lua based template system to generate config files 
-</p>
+<br>
+<br>
+
 
 ## Note
 This project is not released yet, check out [the tracking issue](https://github.com/druskus20/templar/issues/1#issue-1162078516).
