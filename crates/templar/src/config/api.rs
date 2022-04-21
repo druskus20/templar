@@ -13,7 +13,7 @@ mod lua_functions {
     use std::sync::Arc;
     use std::sync::Mutex;
 
-    use crate::config::RawConfig;
+    use crate::config::rawconfig::RawConfig;
 
     use super::*;
 

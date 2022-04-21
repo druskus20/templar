@@ -6,7 +6,7 @@ use std::{
 use super::opt::{Generate, Run};
 use crate::{
     conductor::{config::Config, engine::Engine},
-    config::RawConfig,
+    config::rawconfig::RawConfig,
 };
 use anyhow::Result;
 use rlua::Lua;
@@ -42,7 +42,7 @@ pub(super) fn run(run: &Run) -> Result<()> {
             base.join("config.lua")
         };
 
-        super::config::require_config(&lua, config_path)?;
+        super::config::rawconfig::require_config(&lua, config_path)?;
     }
 
     // We know that, at this point, the other references to the inner contents

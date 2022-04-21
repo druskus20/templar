@@ -2,15 +2,17 @@
 extern crate lua_export;
 
 pub(crate) mod config {
-    #[derive(Clone)]
-    pub struct RawConfig {}
+    pub(crate) mod rawconfig {
+        #[derive(Clone)]
+        pub struct RawConfig {}
+    }
 }
 
 #[lua_export_mod]
 mod lua_export_test {
     use std::sync::{Arc, Mutex};
 
-    use crate::config::RawConfig;
+    use crate::config::rawconfig::RawConfig;
 
     #[lua_export]
     pub fn foo(_config: Arc<Mutex<RawConfig>>) -> Result<String, std::num::ParseIntError> {

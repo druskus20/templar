@@ -2,7 +2,7 @@ use anyhow::Result;
 use glob::glob;
 use std::path::{Path, PathBuf};
 
-use crate::config::{rawrule::RawRule, RawConfig};
+use crate::config::{rawconfig::RawConfig, rawrule::RawRule};
 
 #[derive(Clone, Debug)]
 pub(crate) struct Config {
@@ -49,6 +49,8 @@ pub(crate) struct Rule {
 
 impl Rule {
     // TODO: Clean up this mess / test
+    // TODO: This is all relying on PathBuf. Should be changed in somw way, probably. We shouldnt rely on PathBuf until its
+    // time to call engine.run()
     pub(super) fn from_raw_rule(raw_rule: RawRule) -> Result<Self> {
         let rules = raw_rule
             .rules
@@ -127,63 +129,4 @@ fn expand_dir_rec(dir: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
         }
     }
     Ok(targets)
-}
-
-#[cfg(test)]
-mod tests {
-    use std::fs::create_dir;
-    use std::fs::File;
-    use std::path::PathBuf;
-    use tempdir::TempDir;
-
-    #[test]
-    fn test_calc_targets() {
-        let root = TempDir::new("test_calc_targets");
-        let root = root.ok().expect("Should have created a temp directory");
-
-        let base_path = root.path().join("base");
-
-        create_dir(&base_path).unwrap();
-        create_dir(&base_path.join("aaa")).unwrap();
-        File::create(&base_path.join("aaa/filea.txt")).unwrap();
-        File::create(&base_path.join("aaa/fileaa.txt")).unwrap();
-        create_dir(&base_path.join("aaa/bbb")).unwrap();
-        File::create(&base_path.join("aaa/bbb/fileb.txt")).unwrap();
-        create_dir(&base_path.join("aaa/bbb/ccc")).unwrap();
-        File::create(&base_path.join("aaa/bbb/ccc/filec.txt")).unwrap();
-
-        let mut targets =
-            super::calc_targets("aaa/*".to_string(), base_path.display().to_string()).unwrap();
-
-        let mut expected = vec![
-            PathBuf::from(
-                root.path()
-                    .join("base/aaa/filea.txt")
-                    .canonicalize()
-                    .unwrap(),
-            ),
-            PathBuf::from(
-                root.path()
-                    .join("base/aaa/fileaa.txt")
-                    .canonicalize()
-                    .unwrap(),
-            ),
-            PathBuf::from(
-                root.path()
-                    .join("base/aaa/bbb/fileb.txt")
-                    .canonicalize()
-                    .unwrap(),
-            ),
-            PathBuf::from(
-                root.path()
-                    .join("base/aaa/bbb/ccc/filec.txt")
-                    .canonicalize()
-                    .unwrap(),
-            ),
-        ];
-
-        targets.sort();
-        expected.sort();
-        assert_eq!(targets, expected);
-    }
 }
