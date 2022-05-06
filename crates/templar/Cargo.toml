@@ -5,7 +5,7 @@ edition = "2021"
 
 [dev-dependencies]
 lazy_static = "1.4.0"
-indoc = "1.0.3"
+indoc = "1.0.5"
 tempdir = "0.3.7"
 
 [dependencies]
