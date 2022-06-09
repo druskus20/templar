@@ -9,6 +9,6 @@ proc-macro = true
 [dependencies]
 syn = { version = "1.0.86", features = [ "full" ] }
 quote = "1.0.16"
-rlua = "0.19.1"
+rlua = "0.19.2"
 tempdir = "0.3.7"
 indoc = "1.0.4"
